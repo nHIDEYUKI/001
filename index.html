@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Bounce Game - High Score Support</title>
+    <title>Bounce Game - UI Updated</title>
     <style>
         body {
             margin: 0;
             display: flex;
+            flex-direction: column; /* 縦並びに変更 */
             justify-content: center;
             align-items: center;
             height: 100vh;
@@ -17,30 +18,59 @@
             overflow: hidden;
             touch-action: none;
         }
+
+        /* スコア表示エリアをキャンバスのすぐ上に配置 */
+        #ui-container {
+            text-align: center;
+            margin-bottom: 10px;
+            width: 100%;
+            max-width: 480px;
+        }
+
+        #scoreDisplay { 
+            font-size: 28px; 
+            margin: 0; 
+            color: #fff;
+        }
+
+        #highScoreDisplay { 
+            font-size: 16px; 
+            color: #bdc3c7; 
+            margin-bottom: 5px;
+        }
+
+        /* リセットボタンのスタイル */
+        #resetBtn {
+            background-color: #e67e22;
+            border: none;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 12px;
+            pointer-events: auto; /* クリック可能にする */
+        }
+        #resetBtn:active {
+            background-color: #d35400;
+        }
+
         canvas {
             border: 4px solid #ecf0f1;
             background-color: #000;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            max-width: 100%;
-            max-height: 100%;
+            max-width: 95vw;
+            max-height: 70vh;
         }
-        #ui {
-            position: absolute;
-            top: 10px;
-            text-align: center;
-            pointer-events: none;
-            width: 100%;
-        }
-        h1 { font-size: 22px; margin: 5px 0; }
-        #highScoreDisplay { font-size: 16px; color: #bdc3c7; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
+    <div id="ui-container">
         <h1 id="scoreDisplay">Score: 0</h1>
         <div id="highScoreDisplay">High Score: 0</div>
+        <button id="resetBtn">Reset High Score</button>
     </div>
+    
     <canvas id="gameCanvas"></canvas>
 
 <script>
@@ -48,6 +78,7 @@
     const ctx = canvas.getContext("2d");
     const scoreDisplay = document.getElementById("scoreDisplay");
     const highScoreDisplay = document.getElementById("highScoreDisplay");
+    const resetBtn = document.getElementById("resetBtn");
 
     canvas.width = 480;
     canvas.height = 640;
@@ -56,15 +87,31 @@
     let highScore = localStorage.getItem("bounceHighScore") || 0;
     let gameOver = false;
 
-    // 初回表示のハイスコア反映
+    // --- FPS制御 (60fps) ---
+    const targetFps = 60;
+    const fpsInterval = 1000 / targetFps;
+    let then = performance.now();
+
+    // 初期表示
     highScoreDisplay.innerText = `High Score: ${highScore}`;
+
+    // --- ハイスコアリセット機能 ---
+    resetBtn.addEventListener("click", (e) => {
+        // ゲーム中にボタンを押してもパドルが動かないように伝播を止める
+        e.stopPropagation();
+        if (confirm("ハイスコアをリセットしますか？")) {
+            highScore = 0;
+            localStorage.removeItem("bounceHighScore");
+            highScoreDisplay.innerText = `High Score: 0`;
+        }
+    });
 
     const paddle = {
         radiusX: 60,
         radiusY: 20,
         x: canvas.width / 2,
         y: canvas.height - 60,
-        speed: 9,
+        speed: 9, 
         dx: 0
     };
 
@@ -89,21 +136,19 @@
         ball.dy = 0;
         paddle.x = canvas.width / 2;
         paddle.dx = 0;
-        requestAnimationFrame(draw);
+        then = performance.now();
+        requestAnimationFrame(gameLoop);
     }
 
-    // ハイスコア保存
     function updateHighScore() {
         if (score > highScore) {
             highScore = score;
             localStorage.setItem("bounceHighScore", highScore);
             highScoreDisplay.innerText = `High Score: ${highScore}`;
-            return true; // 更新された場合
         }
-        return false;
     }
 
-    // --- 操作設定 ---
+    // --- 操作 ---
     document.addEventListener("keydown", (e) => {
         if (e.key === " ") e.preventDefault();
         if (e.key === "ArrowLeft") paddle.dx = -paddle.speed;
@@ -115,18 +160,25 @@
         if (e.key === "ArrowLeft" || e.key === "ArrowRight") paddle.dx = 0;
     });
 
-    canvas.addEventListener("touchstart", handleTouch, {passive: false});
-    canvas.addEventListener("touchmove", handleTouch, {passive: false});
-    canvas.addEventListener("touchend", () => {
-        if (!gameOver) paddle.dx = 0;
-    }, {passive: false});
-
-    function handleTouch(e) {
+    canvas.addEventListener("touchstart", (e) => {
         e.preventDefault();
         if (gameOver) {
             resetGame();
             return;
         }
+        handleTouch(e);
+    }, {passive: false});
+
+    canvas.addEventListener("touchmove", (e) => {
+        e.preventDefault();
+        handleTouch(e);
+    }, {passive: false});
+
+    canvas.addEventListener("touchend", () => {
+        if (!gameOver) paddle.dx = 0;
+    }, {passive: false});
+
+    function handleTouch(e) {
         const rect = canvas.getBoundingClientRect();
         const touchX = e.touches[0].clientX - rect.left;
         const scaleX = canvas.width / rect.width;
@@ -139,7 +191,6 @@
         }
     }
 
-    // --- メインロジック ---
     function update() {
         if (gameOver) return;
 
@@ -186,14 +237,12 @@
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // パドル
         ctx.beginPath();
         ctx.fillStyle = "#3498db";
         ctx.ellipse(paddle.x, paddle.y, paddle.radiusX, paddle.radiusY, 0, Math.PI, 0);
         ctx.fill();
         ctx.closePath();
 
-        // ボール（赤）
         ctx.beginPath();
         ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
         ctx.fillStyle = "#e74c3c"; 
@@ -209,20 +258,28 @@
             ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
             
             ctx.font = "24px Arial";
-            ctx.fillStyle = "#f1c40f"; // 金色っぽく
+            ctx.fillStyle = "#f1c40f";
             ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 10);
             
             ctx.font = "18px Arial";
             ctx.fillStyle = "white";
             ctx.fillText("Tap Screen or Space to Restart", canvas.width / 2, canvas.height / 2 + 60);
-            return;
         }
-
-        update();
-        requestAnimationFrame(draw);
     }
 
-    draw();
+    function gameLoop(timestamp) {
+        if (gameOver) return;
+        requestAnimationFrame(gameLoop);
+        const now = timestamp;
+        const elapsed = now - then;
+        if (elapsed >= fpsInterval) {
+            then = now - (elapsed % fpsInterval);
+            update();
+            draw();
+        }
+    }
+
+    requestAnimationFrame(gameLoop);
 </script>
 </body>
 </html>
