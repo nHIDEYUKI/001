@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bounce Game - High Score Support</title>
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #2c3e50;
+            color: white;
+            font-family: sans-serif;
+            overflow: hidden;
+            touch-action: none;
+        }
+        canvas {
+            border: 4px solid #ecf0f1;
+            background-color: #000;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+            max-width: 100%;
+            max-height: 100%;
+        }
+        #ui {
+            position: absolute;
+            top: 10px;
+            text-align: center;
+            pointer-events: none;
+            width: 100%;
+        }
+        h1 { font-size: 22px; margin: 5px 0; }
+        #highScoreDisplay { font-size: 16px; color: #bdc3c7; }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <h1 id="scoreDisplay">Score: 0</h1>
+        <div id="highScoreDisplay">High Score: 0</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+<script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+    const scoreDisplay = document.getElementById("scoreDisplay");
+    const highScoreDisplay = document.getElementById("highScoreDisplay");
+
+    canvas.width = 480;
+    canvas.height = 640;
+
+    let score = 0;
+    let highScore = localStorage.getItem("bounceHighScore") || 0;
+    let gameOver = false;
+
+    // 初回表示のハイスコア反映
+    highScoreDisplay.innerText = `High Score: ${highScore}`;
+
+    const paddle = {
+        radiusX: 60,
+        radiusY: 20,
+        x: canvas.width / 2,
+        y: canvas.height - 60,
+        speed: 9,
+        dx: 0
+    };
+
+    const ball = {
+        x: canvas.width / 2,
+        y: 100,
+        radius: 10,
+        dx: 4,
+        dy: 0,
+        gravity: 0.2,
+        bounce: -1.0,
+        minBounce: -8
+    };
+
+    function resetGame() {
+        score = 0;
+        scoreDisplay.innerText = `Score: ${score}`;
+        gameOver = false;
+        ball.x = canvas.width / 2;
+        ball.y = 100;
+        ball.dx = (Math.random() > 0.5 ? 4 : -4);
+        ball.dy = 0;
+        paddle.x = canvas.width / 2;
+        paddle.dx = 0;
+        requestAnimationFrame(draw);
+    }
+
+    // ハイスコア保存
+    function updateHighScore() {
+        if (score > highScore) {
+            highScore = score;
+            localStorage.setItem("bounceHighScore", highScore);
+            highScoreDisplay.innerText = `High Score: ${highScore}`;
+            return true; // 更新された場合
+        }
+        return false;
+    }
+
+    // --- 操作設定 ---
+    document.addEventListener("keydown", (e) => {
+        if (e.key === " ") e.preventDefault();
+        if (e.key === "ArrowLeft") paddle.dx = -paddle.speed;
+        if (e.key === "ArrowRight") paddle.dx = paddle.speed;
+        if (gameOver && e.key === " ") resetGame();
+    });
+
+    document.addEventListener("keyup", (e) => {
+        if (e.key === "ArrowLeft" || e.key === "ArrowRight") paddle.dx = 0;
+    });
+
+    canvas.addEventListener("touchstart", handleTouch, {passive: false});
+    canvas.addEventListener("touchmove", handleTouch, {passive: false});
+    canvas.addEventListener("touchend", () => {
+        if (!gameOver) paddle.dx = 0;
+    }, {passive: false});
+
+    function handleTouch(e) {
+        e.preventDefault();
+        if (gameOver) {
+            resetGame();
+            return;
+        }
+        const rect = canvas.getBoundingClientRect();
+        const touchX = e.touches[0].clientX - rect.left;
+        const scaleX = canvas.width / rect.width;
+        const xInCanvas = touchX * scaleX;
+
+        if (xInCanvas < canvas.width / 2) {
+            paddle.dx = -paddle.speed;
+        } else {
+            paddle.dx = paddle.speed;
+        }
+    }
+
+    // --- メインロジック ---
+    function update() {
+        if (gameOver) return;
+
+        paddle.x += paddle.dx;
+        if (paddle.x - paddle.radiusX < 0) paddle.x = paddle.radiusX;
+        if (paddle.x + paddle.radiusX > canvas.width) paddle.x = canvas.width - paddle.radiusX;
+
+        ball.dy += ball.gravity;
+        ball.x += ball.dx;
+        ball.y += ball.dy;
+
+        if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+            ball.dx *= -1;
+            ball.x = (ball.x < ball.radius) ? ball.radius : canvas.width - ball.radius;
+        }
+        if (ball.y - ball.radius < 0) {
+            ball.dy *= -1;
+            ball.y = ball.radius;
+        }
+
+        if (
+            ball.y + ball.radius > paddle.y - paddle.radiusY &&
+            ball.y < paddle.y &&
+            ball.x > paddle.x - paddle.radiusX &&
+            ball.x < paddle.x + paddle.radiusX &&
+            ball.dy > 0
+        ) {
+            const hitPos = (ball.x - paddle.x) / paddle.radiusX;
+            ball.dy *= ball.bounce;
+            if (ball.dy > ball.minBounce) ball.dy = ball.minBounce;
+            ball.dx = hitPos * 8; 
+
+            ball.y = paddle.y - paddle.radiusY - ball.radius;
+            score++;
+            scoreDisplay.innerText = `Score: ${score}`;
+        }
+
+        if (ball.y - ball.radius > canvas.height) {
+            gameOver = true;
+            updateHighScore();
+        }
+    }
+
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // パドル
+        ctx.beginPath();
+        ctx.fillStyle = "#3498db";
+        ctx.ellipse(paddle.x, paddle.y, paddle.radiusX, paddle.radiusY, 0, Math.PI, 0);
+        ctx.fill();
+        ctx.closePath();
+
+        // ボール（赤）
+        ctx.beginPath();
+        ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+        ctx.fillStyle = "#e74c3c"; 
+        ctx.fill();
+        ctx.closePath();
+
+        if (gameOver) {
+            ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.font = "bold 32px Arial";
+            ctx.fillText("GAME OVER", canvas.width / 2, canvas.height / 2 - 40);
+            
+            ctx.font = "24px Arial";
+            ctx.fillStyle = "#f1c40f"; // 金色っぽく
+            ctx.fillText(`Final Score: ${score}`, canvas.width / 2, canvas.height / 2 + 10);
+            
+            ctx.font = "18px Arial";
+            ctx.fillStyle = "white";
+            ctx.fillText("Tap Screen or Space to Restart", canvas.width / 2, canvas.height / 2 + 60);
+            return;
+        }
+
+        update();
+        requestAnimationFrame(draw);
+    }
+
+    draw();
+</script>
+</body>
+</html>
