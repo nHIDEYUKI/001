@@ -3,371 +3,508 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ヘディング - Pro Heading Game</title>
+    <title>プロ・ヘディング・マスター</title>
     <style>
+        :root {
+            --primary: #f1c40f;
+            --bg: #1a1a2e;
+            --accent: #3498db;
+            --danger: #e74c3c;
+        }
+
         body {
             margin: 0;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             min-height: 100vh;
-            background-color: #2c3e50;
+            background-color: var(--bg);
             color: white;
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            overflow-y: auto;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            overflow: hidden;
             touch-action: none;
         }
 
-        #game-title {
-            font-size: 42px;
-            font-weight: 900;
-            margin: 10px 0 5px 0;
-            color: #f1c40f;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
-            letter-spacing: 4px;
+        #header {
+            width: 100%;
+            padding: 15px 0;
+            text-align: center;
+            background: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent);
         }
 
-        #ui-container {
-            text-align: center;
-            margin-bottom: 10px;
+        #game-title {
+            font-size: 28px;
+            font-weight: 900;
+            margin: 0;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
+        }
+
+        #stats {
+            display: flex;
+            justify-content: space-around;
             width: 100%;
             max-width: 480px;
+            margin: 10px 0;
         }
 
-        #scoreDisplay { font-size: 28px; margin: 5px 0; color: #fff; }
-        #highScoreDisplay { font-size: 14px; color: #bdc3c7; margin-bottom: 5px; }
+        .stat-box {
+            text-align: center;
+        }
 
-        #resetBtn {
-            background-color: #e67e22;
-            border: none;
-            color: white;
-            padding: 5px 12px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 11px;
-            margin-bottom: 5px;
+        .stat-label {
+            font-size: 10px;
+            color: #888;
+            text-transform: uppercase;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #canvas-container {
+            position: relative;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            border-radius: 8px;
+            overflow: hidden;
         }
 
         canvas {
-            border: 4px solid #ecf0f1;
-            background-color: #000;
-            box-shadow: 0 0 20px rgba(0,0,0,0.5);
-            max-width: 90vw;
-            max-height: 45vh;
+            background: radial-gradient(circle at 50% 30%, #2c3e50 0%, #000 100%);
             display: block;
+            touch-action: none;
         }
 
-        #controller {
+        #combo-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 32px;
+            font-weight: 900;
+            color: var(--primary);
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            pointer-events: none;
+        }
+
+        #combo-display.active {
+            opacity: 1;
+            transform: scale(1.2);
+        }
+
+        #controls {
             display: flex;
             width: 100%;
             max-width: 480px;
-            justify-content: center;
-            gap: 10px;
-            padding: 15px 0;
-            user-select: none;
+            gap: 15px;
+            padding: 20px;
+            box-sizing: border-box;
         }
 
-        .btn {
-            width: 45%;
-            height: 70px;
-            background-color: #34495e;
-            border: 2px solid #ecf0f1;
+        .control-btn {
+            flex: 1;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(255, 255, 255, 0.1);
             border-radius: 15px;
             display: flex;
             justify-content: center;
             align-items: center;
+            color: white;
             font-weight: bold;
-            font-size: 20px;
+            font-size: 18px;
             transition: all 0.1s;
-            cursor: pointer;
-            touch-action: none;
+            user-select: none;
             -webkit-tap-highlight-color: transparent;
         }
 
-        .btn.active {
-            background-color: #3498db;
-            box-shadow: 0 0 20px #3498db;
-            transform: scale(0.95);
+        .control-btn:active {
+            background: var(--accent);
             border-color: #fff;
+            transform: scale(0.95);
         }
 
-        #how-to-play {
-            width: 90%;
-            max-width: 480px;
-            background-color: rgba(0, 0, 0, 0.3);
-            border-radius: 10px;
-            padding: 15px;
-            margin-top: 10px;
-            margin-bottom: 30px;
-            font-size: 13px;
-            line-height: 1.6;
-            color: #ecf0f1;
-            border-left: 4px solid #f1c40f;
+        #footer {
+            margin-top: auto;
+            padding: 20px;
+            font-size: 12px;
+            color: #555;
+            text-align: center;
         }
 
-        .how-to-title {
+        .modal {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            visibility: hidden;
+            opacity: 0;
+            transition: 0.3s;
+        }
+
+        .modal.show {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        .modal-content {
+            text-align: center;
+            padding: 40px;
+            background: #222;
+            border-radius: 20px;
+            border: 2px solid var(--primary);
+            width: 80%;
+            max-width: 300px;
+        }
+
+        .modal-title {
+            font-size: 32px;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .restart-btn {
+            background: var(--primary);
+            color: #000;
+            border: none;
+            padding: 12px 30px;
+            font-size: 18px;
             font-weight: bold;
-            color: #f1c40f;
-            margin-bottom: 8px;
-            display: block;
-            font-size: 15px;
-        }
-
-        kbd {
-            background-color: #eee;
-            border-radius: 3px;
-            border: 1px solid #b4b4b4;
-            color: #333;
-            display: inline-block;
-            font-size: .85em;
-            padding: 2px 4px;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 20px;
         }
     </style>
 </head>
 <body>
 
-    <h1 id="game-title">ヘディング</h1>
-
-    <div id="ui-container">
-        <div id="highScoreDisplay">High Score: 0</div>
-        <h1 id="scoreDisplay">Score: 0</h1>
-        <button id="resetBtn">Reset High Score</button>
-    </div>
-    
-    <canvas id="gameCanvas"></canvas>
-
-    <div id="controller">
-        <div id="btnLeft" class="btn">LEFT</div>
-        <div id="btnRight" class="btn">RIGHT</div>
+    <div id="header">
+        <h1 id="game-title">Heading Master</h1>
     </div>
 
-    <div id="how-to-play">
-        <span class="how-to-title">⚽ 遊び方</span>
-        <div style="display: flex; justify-content: space-between; gap: 15px;">
-            <div>
-                <strong>【PC】</strong><br>
-                ・<kbd>←</kbd> <kbd>→</kbd> キーで移動<br>
-                ・<kbd>Space</kbd> でリスタート
-            </div>
-            <div>
-                <strong>【スマホ】</strong><br>
-                ・下のボタンで移動<br>
-                ・画面タップでリスタート
-            </div>
+    <div id="stats">
+        <div class="stat-box">
+            <div class="stat-label">Score</div>
+            <div id="scoreVal" class="stat-value">0</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-label">High Score</div>
+            <div id="highScoreVal" class="stat-value">0</div>
+        </div>
+    </div>
+
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+        <div id="combo-display">x0</div>
+    </div>
+
+    <div id="controls">
+        <div id="btnLeft" class="control-btn">LEFT</div>
+        <div id="btnRight" class="control-btn">RIGHT</div>
+    </div>
+
+    <div id="footer">
+        PC: ← → / Space | スマホ: 下部ボタン
+    </div>
+
+    <div id="gameOverModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-title">GAME OVER</div>
+            <p>今回のスコア: <span id="finalScore">0</span></p>
+            <p>最高記録: <span id="finalBest">0</span></p>
+            <button class="restart-btn" onclick="resetGame()">RESTART</button>
         </div>
     </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const scoreDisplay = document.getElementById("scoreDisplay");
-    const highScoreDisplay = document.getElementById("highScoreDisplay");
-    const resetBtn = document.getElementById("resetBtn");
-    const btnLeft = document.getElementById("btnLeft");
-    const btnRight = document.getElementById("btnRight");
+    const scoreVal = document.getElementById("scoreVal");
+    const highScoreVal = document.getElementById("highScoreVal");
+    const comboDisplay = document.getElementById("combo-display");
+    const gameOverModal = document.getElementById("gameOverModal");
+    const finalScoreText = document.getElementById("finalScore");
+    const finalBestText = document.getElementById("finalBest");
 
-    canvas.width = 480;
-    canvas.height = 640;
+    // レスポンシブ設定
+    const baseWidth = 400;
+    const baseHeight = 500;
+    const scale = Math.min(window.innerWidth * 0.9 / baseWidth, window.innerHeight * 0.5 / baseHeight);
+    canvas.width = baseWidth;
+    canvas.height = baseHeight;
+    canvas.style.width = (baseWidth * scale) + "px";
+    canvas.style.height = (baseHeight * scale) + "px";
 
     let score = 0;
-    let highScore = localStorage.getItem("bounceHighScore") || 0;
+    let combo = 0;
+    let highScore = localStorage.getItem("heading_master_best") || 0;
     let gameOver = false;
+    let particles = [];
 
-    const targetFps = 60;
-    const fpsInterval = 1000 / targetFps;
-    let then = performance.now();
-
-    highScoreDisplay.innerText = `High Score: ${highScore}`;
+    highScoreVal.innerText = highScore;
 
     const paddle = {
-        radiusX: 28,
-        radiusY: 38,
+        w: 60,
+        h: 70,
         x: canvas.width / 2,
         y: canvas.height - 10,
-        speed: 10, 
-        dx: 0
+        speed: 8,
+        dx: 0,
+        color: "#ffdbac"
     };
 
     const ball = {
         x: canvas.width / 2,
-        y: 150,
-        radius: 23,
-        dx: 4,
+        y: 100,
+        radius: 18,
+        dx: 3,
         dy: 0,
-        angle: 0, 
-        gravity: 0.20, // 少し滞空時間を伸ばすため微減
-        fixedLaunchSpeed: -14.2 // ★ここを強化してより高く上がるようにしました
+        gravity: 0.22,
+        friction: 0.99,
+        bounce: -13,
+        angle: 0,
+        rotationSpeed: 0
     };
 
-    const input = { left: false, right: false };
+    const keys = { left: false, right: false };
 
-    function updateInput() {
-        if (input.left) paddle.dx = -paddle.speed;
-        else if (input.right) paddle.dx = paddle.speed;
-        else paddle.dx = 0;
-        
-        btnLeft.classList.toggle('active', input.left);
-        btnRight.classList.toggle('active', input.right);
+    // パーティクル生成
+    function createParticles(x, y, color) {
+        for(let i=0; i<10; i++) {
+            particles.push({
+                x: x,
+                y: y,
+                dx: (Math.random() - 0.5) * 8,
+                dy: (Math.random() - 0.5) * 8,
+                life: 1.0,
+                color: color
+            });
+        }
     }
 
     function resetGame() {
         score = 0;
-        scoreDisplay.innerText = `Score: ${score}`;
+        combo = 0;
+        scoreVal.innerText = score;
         gameOver = false;
+        gameOverModal.classList.remove("show");
         ball.x = canvas.width / 2;
-        ball.y = 150;
-        ball.dx = (Math.random() > 0.5 ? 4 : -4);
+        ball.y = 100;
+        ball.dx = (Math.random() > 0.5 ? 3 : -3);
         ball.dy = 0;
-        ball.angle = 0; 
+        ball.rotationSpeed = 0.1;
         paddle.x = canvas.width / 2;
-        then = performance.now();
+        particles = [];
         requestAnimationFrame(gameLoop);
     }
 
-    document.addEventListener("keydown", (e) => {
-        if (e.key === "ArrowLeft") input.left = true;
-        if (e.key === "ArrowRight") input.right = true;
-        if (gameOver && (e.key === " " || e.key === "Enter")) resetGame();
+    // 入力処理
+    window.addEventListener("keydown", e => {
+        if(e.key === "ArrowLeft") keys.left = true;
+        if(e.key === "ArrowRight") keys.right = true;
+        if(gameOver && e.key === " ") resetGame();
+    });
+    window.addEventListener("keyup", e => {
+        if(e.key === "ArrowLeft") keys.left = false;
+        if(e.key === "ArrowRight") keys.right = false;
     });
 
-    document.addEventListener("keyup", (e) => {
-        if (e.key === "ArrowLeft") input.left = false;
-        if (e.key === "ArrowRight") input.right = false;
-    });
-
-    function bindButton(element, direction) {
-        const start = (e) => { e.preventDefault(); if(gameOver) resetGame(); else input[direction] = true; };
-        const end = (e) => { e.preventDefault(); input[direction] = false; };
-        element.addEventListener("touchstart", start, {passive: false});
-        element.addEventListener("touchend", end, {passive: false});
-        element.addEventListener("mousedown", start);
-        window.addEventListener("mouseup", () => { input[direction] = false; });
+    function setupBtn(id, dir) {
+        const btn = document.getElementById(id);
+        const start = (e) => { e.preventDefault(); keys[dir] = true; };
+        const end = (e) => { e.preventDefault(); keys[dir] = false; };
+        btn.addEventListener("touchstart", start);
+        btn.addEventListener("touchend", end);
+        btn.addEventListener("mousedown", start);
+        btn.addEventListener("mouseup", end);
+        btn.addEventListener("mouseleave", end);
     }
-
-    bindButton(btnLeft, 'left');
-    bindButton(btnRight, 'right');
+    setupBtn("btnLeft", "left");
+    setupBtn("btnRight", "right");
 
     function update() {
         if (gameOver) return;
-        updateInput();
-        paddle.x += paddle.dx;
-        if (paddle.x - paddle.radiusX < 0) paddle.x = paddle.radiusX;
-        if (paddle.x + paddle.radiusX > canvas.width) paddle.x = canvas.width - paddle.radiusX;
 
+        // パドル移動
+        if (keys.left) paddle.dx = -paddle.speed;
+        else if (keys.right) paddle.dx = paddle.speed;
+        else paddle.dx *= 0.8;
+        
+        paddle.x += paddle.dx;
+        paddle.x = Math.max(paddle.w/2, Math.min(canvas.width - paddle.w/2, paddle.x));
+
+        // ボール物理
         ball.dy += ball.gravity;
         ball.x += ball.dx;
         ball.y += ball.dy;
-        ball.angle += ball.dx / ball.radius;
+        ball.angle += ball.rotationSpeed;
+        ball.dx *= ball.friction;
 
-        if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
-            ball.dx *= -1;
-            ball.x = (ball.x < ball.radius) ? ball.radius : canvas.width - ball.radius;
+        // 壁反射
+        if (ball.x < ball.radius || ball.x > canvas.width - ball.radius) {
+            ball.dx *= -0.8;
+            ball.x = ball.x < ball.radius ? ball.radius : canvas.width - ball.radius;
+            ball.rotationSpeed *= -1;
+            createParticles(ball.x, ball.y, "#fff");
         }
 
-        const ballBottom = ball.y + ball.radius;
-        const headTop = paddle.y - paddle.radiusY;
-        
-        if (
-            ball.dy > 0 &&
-            ballBottom > headTop && 
-            ballBottom < headTop + ball.dy + 15 &&
-            ball.x > paddle.x - paddle.radiusX - 5 && 
-            ball.x < paddle.x + paddle.radiusX + 5
-        ) {
-            const hitPos = (ball.x - paddle.x) / paddle.radiusX;
-            ball.dy = ball.fixedLaunchSpeed; 
-            ball.dx = hitPos * 10; 
+        // 天井反射
+        if (ball.y < ball.radius) {
+            ball.dy *= -0.8;
+            ball.y = ball.radius;
+        }
+
+        // ヘディング判定
+        const headTop = paddle.y - paddle.h;
+        if (ball.dy > 0 && 
+            ball.y + ball.radius > headTop && 
+            ball.y < paddle.y &&
+            Math.abs(ball.x - paddle.x) < paddle.w/2 + ball.radius) {
+            
+            // ヒット位置による角度変化
+            const diff = ball.x - paddle.x;
+            ball.dx = diff * 0.25 + paddle.dx * 0.5;
+            ball.dy = ball.bounce;
             ball.y = headTop - ball.radius;
+            ball.rotationSpeed = ball.dx * 0.05;
+
+            // スコア更新
             score++;
-            scoreDisplay.innerText = `Score: ${score}`;
+            combo++;
+            scoreVal.innerText = score;
+            
+            // コンボ演出
+            if(combo > 1) {
+                comboDisplay.innerText = `x${combo}`;
+                comboDisplay.classList.add("active");
+                setTimeout(() => comboDisplay.classList.remove("active"), 300);
+            }
+
+            createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
         }
 
-        if (ball.y - ball.radius > canvas.height) {
+        // ゲームオーバー
+        if (ball.y > canvas.height + 100) {
             gameOver = true;
             if (score > highScore) {
                 highScore = score;
-                localStorage.setItem("bounceHighScore", highScore);
-                highScoreDisplay.innerText = `High Score: ${highScore}`;
+                localStorage.setItem("heading_master_best", highScore);
+                highScoreVal.innerText = highScore;
             }
+            finalScoreText.innerText = score;
+            finalBestText.innerText = highScore;
+            gameOverModal.classList.add("show");
+            combo = 0;
         }
+
+        // パーティクル更新
+        particles.forEach((p, i) => {
+            p.x += p.dx;
+            p.y += p.dy;
+            p.life -= 0.02;
+            if(p.life <= 0) particles.splice(i, 1);
+        });
     }
 
     function drawSoccerBall(x, y, radius, angle) {
         ctx.save();
         ctx.translate(x, y);
-        ctx.rotate(angle); 
+        ctx.rotate(angle);
+        
+        // 本体
         ctx.beginPath();
         ctx.arc(0, 0, radius, 0, Math.PI * 2);
-        ctx.fillStyle = "#fff";
+        const grad = ctx.createRadialGradient(-radius*0.3, -radius*0.3, radius*0.1, 0, 0, radius);
+        grad.addColorStop(0, "#fff");
+        grad.addColorStop(1, "#999");
+        ctx.fillStyle = grad;
         ctx.fill();
-        ctx.strokeStyle = "#ccc";
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
         ctx.stroke();
-        ctx.fillStyle = "#333";
-        for (let i = 0; i < 6; i++) {
-            const a = (Math.PI * 2 / 6) * i;
-            const dist = (i === 0) ? 0 : radius * 0.7;
-            ctx.save();
-            ctx.translate(Math.cos(a) * dist, Math.sin(a) * dist);
+
+        // 五角形模様（簡易）
+        ctx.fillStyle = "#222";
+        for (let i = 0; i < 5; i++) {
             ctx.beginPath();
-            for(let j=0; j<5; j++){
-                const ang = (Math.PI*2/5)*j;
-                ctx.lineTo(Math.cos(ang)*radius*0.3, Math.sin(ang)*radius*0.3);
-            }
+            const a = (Math.PI * 2 / 5) * i;
+            ctx.arc(Math.cos(a) * radius * 0.6, Math.sin(a) * radius * 0.6, radius * 0.25, 0, Math.PI * 2);
             ctx.fill();
-            ctx.restore();
         }
         ctx.restore();
     }
 
-    function drawHead(x, y, radiusX, radiusY) {
+    function drawCharacter(x, y, w, h) {
         ctx.save();
+        // 体
+        ctx.fillStyle = "#3498db";
         ctx.beginPath();
-        ctx.fillStyle = "#ffdbac"; 
-        ctx.ellipse(x, y, radiusX, radiusY, 0, 0, Math.PI * 2);
+        ctx.roundRect(x - w/2.5, y - h/2.5, w/1.25, h/2, 5);
         ctx.fill();
-        ctx.strokeStyle = "#e0ac69";
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        
-        ctx.fillStyle = "#333"; 
-        ctx.beginPath(); ctx.arc(x - 10, y - 18, 4, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 10, y - 18, 4, 0, Math.PI * 2); ctx.fill();
-        
+
+        // 顔
+        ctx.fillStyle = paddle.color;
         ctx.beginPath();
-        ctx.strokeStyle = "#d2b48c";
-        ctx.lineWidth = 2;
-        ctx.moveTo(x, y - 5);
-        ctx.lineTo(x - 3, y + 2);
-        ctx.lineTo(x, y + 2);
+        ctx.ellipse(x, y - h/1.5, w/2.2, h/2.5, 0, 0, Math.PI * 2);
+        ctx.fill();
+        
+        // 目
+        ctx.fillStyle = "#000";
+        ctx.beginPath(); ctx.arc(x - 8, y - h/1.5 - 5, 2.5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 8, y - h/1.5 - 5, 2.5, 0, Math.PI * 2); ctx.fill();
+
+        // 口
+        ctx.strokeStyle = "#000";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.arc(x, y - h/1.5 + 5, 6, 0.2, Math.PI - 0.2);
         ctx.stroke();
+
         ctx.restore();
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        drawHead(paddle.x, paddle.y, paddle.radiusX, paddle.radiusY);
-        drawSoccerBall(ball.x, ball.y, ball.radius, ball.angle);
-        if (gameOver) {
-            ctx.fillStyle = "rgba(0,0,0,0.8)";
-            ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "white";
-            ctx.textAlign = "center";
-            ctx.font = "bold 36px Arial";
-            ctx.fillText("GAME OVER", 240, 280);
-            ctx.fillText(`Score: ${score}`, 240, 330);
+
+        // 背景にグリッド（奥行き感）
+        ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.lineWidth = 1;
+        for(let i=0; i<canvas.width; i+=40) {
+            ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
         }
+        for(let i=0; i<canvas.height; i+=40) {
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+        }
+
+        // パーティクル
+        particles.forEach(p => {
+            ctx.globalAlpha = p.life;
+            ctx.fillStyle = p.color;
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, 2, 0, Math.PI*2);
+            ctx.fill();
+        });
+        ctx.globalAlpha = 1.0;
+
+        drawCharacter(paddle.x, paddle.y, paddle.w, paddle.h);
+        drawSoccerBall(ball.x, ball.y, ball.radius, ball.angle);
     }
 
-    function gameLoop(timestamp) {
+    function gameLoop() {
+        update();
+        draw();
         if (!gameOver) requestAnimationFrame(gameLoop);
-        const elapsed = timestamp - then;
-        if (elapsed >= fpsInterval) {
-            then = timestamp - (elapsed % fpsInterval);
-            update();
-            draw();
-        }
     }
+
     requestAnimationFrame(gameLoop);
 </script>
 </body>
