@@ -235,6 +235,49 @@
     const finalScoreText = document.getElementById("finalScore");
     const finalBestText = document.getElementById("finalBest");
 
+    // --- 効果音エンジン ---
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+    function playSound(type, comboCount = 0) {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        if (type === 'hit') {
+            // ヘディング音：コンボに応じてピッチが上がる
+            osc.type = 'sine';
+            const freq = 400 + (Math.min(comboCount, 15) * 30);
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.1);
+        } 
+        else if (type === 'wall') {
+            // 壁反射音：少し硬めの音
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(600, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.05);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.05);
+        }
+        else if (type === 'over') {
+            // ゲームオーバー音：低く沈む音
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(150, audioCtx.currentTime);
+            osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.5);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.5);
+        }
+    }
+
     // レスポンシブ設定
     const baseWidth = 400;
     const baseHeight = 500;
@@ -277,7 +320,6 @@
 
     const keys = { left: false, right: false };
 
-    // パーティクル生成
     function createParticles(x, y, color) {
         for(let i=0; i<10; i++) {
             particles.push({
@@ -307,7 +349,6 @@
         requestAnimationFrame(gameLoop);
     }
 
-    // 入力処理
     window.addEventListener("keydown", e => {
         if(e.key === "ArrowLeft") keys.left = true;
         if(e.key === "ArrowRight") keys.right = true;
@@ -334,7 +375,6 @@
     function update() {
         if (gameOver) return;
 
-        // パドル移動
         if (keys.left) paddle.dx = -paddle.speed;
         else if (keys.right) paddle.dx = paddle.speed;
         else paddle.dx *= 0.8;
@@ -342,7 +382,6 @@
         paddle.x += paddle.dx;
         paddle.x = Math.max(paddle.w/2, Math.min(canvas.width - paddle.w/2, paddle.x));
 
-        // ボール物理
         ball.dy += ball.gravity;
         ball.x += ball.dx;
         ball.y += ball.dy;
@@ -355,12 +394,14 @@
             ball.x = ball.x < ball.radius ? ball.radius : canvas.width - ball.radius;
             ball.rotationSpeed *= -1;
             createParticles(ball.x, ball.y, "#fff");
+            playSound('wall');
         }
 
         // 天井反射
         if (ball.y < ball.radius) {
             ball.dy *= -0.8;
             ball.y = ball.radius;
+            playSound('wall');
         }
 
         // ヘディング判定
@@ -370,19 +411,16 @@
             ball.y < paddle.y &&
             Math.abs(ball.x - paddle.x) < paddle.w/2 + ball.radius) {
             
-            // ヒット位置による角度変化
             const diff = ball.x - paddle.x;
             ball.dx = diff * 0.25 + paddle.dx * 0.5;
             ball.dy = ball.bounce;
             ball.y = headTop - ball.radius;
             ball.rotationSpeed = ball.dx * 0.05;
 
-            // スコア更新
             score++;
             combo++;
             scoreVal.innerText = score;
             
-            // コンボ演出
             if(combo > 1) {
                 comboDisplay.innerText = `x${combo}`;
                 comboDisplay.classList.add("active");
@@ -390,11 +428,13 @@
             }
 
             createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
+            playSound('hit', combo);
         }
 
         // ゲームオーバー
         if (ball.y > canvas.height + 100) {
             gameOver = true;
+            playSound('over');
             if (score > highScore) {
                 highScore = score;
                 localStorage.setItem("heading_master_best", highScore);
@@ -406,7 +446,6 @@
             combo = 0;
         }
 
-        // パーティクル更新
         particles.forEach((p, i) => {
             p.x += p.dx;
             p.y += p.dy;
@@ -419,8 +458,6 @@
         ctx.save();
         ctx.translate(x, y);
         ctx.rotate(angle);
-        
-        // 本体
         ctx.beginPath();
         ctx.arc(0, 0, radius, 0, Math.PI * 2);
         const grad = ctx.createRadialGradient(-radius*0.3, -radius*0.3, radius*0.1, 0, 0, radius);
@@ -432,7 +469,6 @@
         ctx.lineWidth = 1;
         ctx.stroke();
 
-        // 五角形模様（簡易）
         ctx.fillStyle = "#222";
         for (let i = 0; i < 5; i++) {
             ctx.beginPath();
@@ -445,37 +481,31 @@
 
     function drawCharacter(x, y, w, h) {
         ctx.save();
-        // 体
         ctx.fillStyle = "#3498db";
         ctx.beginPath();
         ctx.roundRect(x - w/2.5, y - h/2.5, w/1.25, h/2, 5);
         ctx.fill();
 
-        // 顔
         ctx.fillStyle = paddle.color;
         ctx.beginPath();
         ctx.ellipse(x, y - h/1.5, w/2.2, h/2.5, 0, 0, Math.PI * 2);
         ctx.fill();
         
-        // 目
         ctx.fillStyle = "#000";
         ctx.beginPath(); ctx.arc(x - 8, y - h/1.5 - 5, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(x + 8, y - h/1.5 - 5, 2.5, 0, Math.PI * 2); ctx.fill();
 
-        // 口
         ctx.strokeStyle = "#000";
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.arc(x, y - h/1.5 + 5, 6, 0.2, Math.PI - 0.2);
         ctx.stroke();
-
         ctx.restore();
     }
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // 背景にグリッド（奥行き感）
         ctx.strokeStyle = "rgba(255,255,255,0.05)";
         ctx.lineWidth = 1;
         for(let i=0; i<canvas.width; i+=40) {
@@ -485,7 +515,6 @@
             ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
         }
 
-        // パーティクル
         particles.forEach(p => {
             ctx.globalAlpha = p.life;
             ctx.fillStyle = p.color;
