@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>プロ・ヘディング・マスター EXTREME</title>
+    <title>Pro Heading Master EXTREME</title>
     <style>
         :root {
             --primary: #f1c40f;
@@ -43,35 +43,12 @@
             text-shadow: 0 0 10px rgba(241, 196, 15, 0.5);
         }
 
-        #stats {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            max-width: 480px;
-            margin: 10px 0;
-        }
-
-        .stat-box {
-            text-align: center;
-        }
-
-        .stat-label {
-            font-size: 10px;
-            color: #888;
-            text-transform: uppercase;
-        }
-
-        .stat-value {
-            font-size: 20px;
-            font-weight: bold;
-            color: #fff;
-        }
-
         #canvas-container {
             position: relative;
             box-shadow: 0 0 30px rgba(0,0,0,0.5);
             border-radius: 8px;
             overflow: hidden;
+            margin-top: 10px;
         }
 
         canvas {
@@ -80,29 +57,10 @@
             touch-action: none;
         }
 
-        #combo-display {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            font-size: 32px;
-            font-weight: 900;
-            color: var(--primary);
-            opacity: 0;
-            transform: scale(0.5);
-            transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            pointer-events: none;
-        }
-
-        #combo-display.active {
-            opacity: 1;
-            transform: scale(1.2);
-        }
-
         #controls {
             display: flex;
             width: 100%;
             max-width: 480px;
-            gap: 15px;
             padding: 20px;
             box-sizing: border-box;
         }
@@ -112,7 +70,6 @@
             height: 80px;
             background: rgba(255, 255, 255, 0.05);
             border: 2px solid rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -124,18 +81,20 @@
             -webkit-tap-highlight-color: transparent;
         }
 
+        #btnLeft {
+            border-radius: 15px 0 0 15px;
+            border-right: none;
+        }
+
+        #btnRight {
+            border-radius: 0 15px 15px 0;
+        }
+
         .control-btn:active {
             background: var(--accent);
             border-color: #fff;
-            transform: scale(0.95);
-        }
-
-        #footer {
-            margin-top: auto;
-            padding: 10px;
-            font-size: 12px;
-            color: #777;
-            text-align: center;
+            transform: scale(0.98);
+            z-index: 2;
         }
 
         .modal {
@@ -163,7 +122,7 @@
             border-radius: 20px;
             border: 2px solid var(--primary);
             width: 80%;
-            max-width: 300px;
+            max-width: 320px;
         }
 
         .modal-title {
@@ -172,7 +131,18 @@
             margin-bottom: 10px;
         }
 
-        .restart-btn {
+        .score-row {
+            margin: 10px 0;
+            font-size: 18px;
+        }
+
+        .highscore-row {
+            color: var(--primary);
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        .action-btn {
             background: var(--primary);
             color: #000;
             border: none;
@@ -181,7 +151,18 @@
             font-weight: bold;
             border-radius: 30px;
             cursor: pointer;
-            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+        }
+
+        .action-btn:active {
+            transform: scale(0.95);
+        }
+
+        .instruction-text {
+            font-size: 14px;
+            color: #aaa;
+            margin-top: 15px;
         }
     </style>
 </head>
@@ -191,20 +172,8 @@
         <h1 id="game-title">Heading Master</h1>
     </div>
 
-    <div id="stats">
-        <div class="stat-box">
-            <div class="stat-label">Score</div>
-            <div id="scoreVal" class="stat-value">0</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-label">High Score</div>
-            <div id="highScoreVal" class="stat-value">0</div>
-        </div>
-    </div>
-
     <div id="canvas-container">
         <canvas id="gameCanvas"></canvas>
-        <div id="combo-display">x0</div>
     </div>
 
     <div id="controls">
@@ -212,31 +181,36 @@
         <div id="btnRight" class="control-btn">RIGHT</div>
     </div>
 
-    <div id="footer">
-        ボール増加で速度爆上げ！<br>
-        5秒ごとに増殖！全ボール消滅で終了
+    <!-- Start Modal -->
+    <div id="startModal" class="modal show">
+        <div class="modal-content">
+            <div class="modal-title">READY?</div>
+            <div class="score-row highscore-row">High Score: <span id="startHighScore">0</span></div>
+            <button class="action-btn" onclick="startGame()">START GAME</button>
+            <p class="instruction-text">Tap LEFT/RIGHT to move<br>Don't let the ball drop!</p>
+        </div>
     </div>
 
+    <!-- Game Over Modal -->
     <div id="gameOverModal" class="modal">
         <div class="modal-content">
             <div class="modal-title">GAME OVER</div>
-            <p>今回のスコア: <span id="finalScore">0</span></p>
-            <p>最高記録: <span id="finalBest">0</span></p>
-            <button class="restart-btn" onclick="resetGame()">RESTART</button>
+            <div class="score-row">Current Score: <span id="finalScore">0</span></div>
+            <div class="score-row highscore-row">High Score: <span id="highScore">0</span></div>
+            <button class="action-btn" onclick="resetGame()">RESTART</button>
         </div>
     </div>
 
 <script>
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
-    const scoreVal = document.getElementById("scoreVal");
-    const highScoreVal = document.getElementById("highScoreVal");
-    const comboDisplay = document.getElementById("combo-display");
+    const startModal = document.getElementById("startModal");
     const gameOverModal = document.getElementById("gameOverModal");
     const finalScoreText = document.getElementById("finalScore");
-    const finalBestText = document.getElementById("finalBest");
+    const highScoreText = document.getElementById("highScore");
+    const startHighScoreText = document.getElementById("startHighScore");
 
-    // Audio logic
+    const STORAGE_KEY = 'heading_master_highscore_v1';
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
     function playSound(type, comboCount = 0) {
@@ -275,7 +249,6 @@
         }
     }
 
-    // Canvas sizing
     const baseWidth = 400;
     const baseHeight = 500;
     const scale = Math.min(window.innerWidth * 0.9 / baseWidth, window.innerHeight * 0.5 / baseHeight);
@@ -284,35 +257,42 @@
     canvas.style.width = (baseWidth * scale) + "px";
     canvas.style.height = (baseHeight * scale) + "px";
 
-    // Game state
     let score = 0;
     let combo = 0;
-    let highScore = localStorage.getItem("heading_master_best") || 0;
-    let gameOver = false;
+    let gameOver = true; 
+    let gameStarted = false;
     let particles = [];
     let balls = [];
     let lastSpawnTime = 0;
-    const SPAWN_INTERVAL = 5000; 
-    const MAX_BALLS = 10;        
+    
+    // スコアアニメーションの状態
+    const scoreAnim = {
+        val: 0,
+        opacity: 0,
+        scale: 1.0,
+        startTime: 0
+    };
 
-    highScoreVal.innerText = highScore;
+    // ボールの出現間隔（3秒に変更）
+    const SPAWN_INTERVAL = 3000; 
+    const MAX_BALLS = 10;        
 
     const paddle = {
         w: 60,
         h: 70,
         x: canvas.width / 2,
         y: canvas.height - 10,
-        baseSpeed: 7, // 少しベースを下げて上昇感を目立たせる
-        speed: 7,     
+        baseSpeed: 4, 
+        speed: 4,     
         dx: 0,
         color: "#ffdbac"
     };
 
     function createBall() {
         return {
-            x: Math.random() * (canvas.width - 40) + 20,
-            y: -20,
-            radius: 18,
+            x: Math.random() * (canvas.width - 60) + 30,
+            y: -30,
+            radius: 24, 
             dx: (Math.random() - 0.5) * 6,
             dy: 2,
             gravity: 0.22,
@@ -359,12 +339,18 @@
         }
     }
 
+    function startGame() {
+        gameStarted = true;
+        startModal.classList.remove("show");
+        resetGame();
+    }
+
     function resetGame() {
         score = 0;
         combo = 0;
-        scoreVal.innerText = score;
         gameOver = false;
         gameOverModal.classList.remove("show");
+        scoreAnim.opacity = 0;
         balls = [createBall()];
         lastSpawnTime = Date.now();
         paddle.x = canvas.width / 2;
@@ -375,7 +361,10 @@
     window.addEventListener("keydown", e => {
         if(e.key === "ArrowLeft") keys.left = true;
         if(e.key === "ArrowRight") keys.right = true;
-        if(gameOver && e.key === " ") resetGame();
+        if(e.key === " " || e.key === "Enter") {
+            if(!gameStarted) startGame();
+            else if(gameOver) resetGame();
+        }
     });
     window.addEventListener("keyup", e => {
         if(e.key === "ArrowLeft") keys.left = false;
@@ -398,9 +387,7 @@
     function update() {
         if (gameOver) return;
 
-        // 【大幅強化】ボール数に合わせて移動速度を劇的にアップ（1個につき+1.5）
-        // 1個なら8.5、10個なら22.0（初期の約3倍）
-        paddle.speed = paddle.baseSpeed + (balls.length * 1.5);
+        paddle.speed = paddle.baseSpeed + (balls.length * 3.0);
 
         if (Date.now() - lastSpawnTime > SPAWN_INTERVAL && balls.length < MAX_BALLS) {
             balls.push(createBall());
@@ -412,6 +399,15 @@
         else paddle.dx *= 0.8;
         paddle.x += paddle.dx;
         paddle.x = Math.max(paddle.w/2, Math.min(canvas.width - paddle.w/2, paddle.x));
+
+        // スコアアニメーションの更新（フェードアウト効果）
+        if (scoreAnim.opacity > 0) {
+            const elapsed = Date.now() - scoreAnim.startTime;
+            if (elapsed > 100) { 
+                scoreAnim.opacity -= 0.015; 
+                scoreAnim.scale += 0.002;
+            }
+        }
 
         for (let i = balls.length - 1; i >= 0; i--) {
             let ball = balls[i];
@@ -445,10 +441,13 @@
 
                 score++;
                 combo++;
-                scoreVal.innerText = score;
-                comboDisplay.innerText = `x${combo}`;
-                comboDisplay.classList.add("active");
-                setTimeout(() => comboDisplay.classList.remove("active"), 300);
+                
+                // スコアアニメーションのトリガー
+                scoreAnim.val = score;
+                scoreAnim.opacity = 1.0;
+                scoreAnim.scale = 1.0;
+                scoreAnim.startTime = Date.now();
+                
                 createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
                 playSound('hit', combo);
             }
@@ -475,14 +474,38 @@
     function endGame() {
         gameOver = true;
         playSound('over');
-        if (score > highScore) {
-            highScore = score;
-            localStorage.setItem("heading_master_best", highScore);
-            highScoreVal.innerText = highScore;
+        scoreAnim.opacity = 0;
+        
+        let savedHighScore = parseInt(localStorage.getItem(STORAGE_KEY)) || 0;
+        
+        if (score > savedHighScore) {
+            savedHighScore = score;
+            localStorage.setItem(STORAGE_KEY, savedHighScore.toString());
+            highScoreText.innerHTML = `${savedHighScore} <span style="color:#2ecc71;font-size:12px">NEW!</span>`;
+        } else {
+            highScoreText.innerText = savedHighScore;
         }
+
+        startHighScoreText.innerText = savedHighScore;
         finalScoreText.innerText = score;
-        finalBestText.innerText = highScore;
         gameOverModal.classList.add("show");
+    }
+
+    function drawScoreText() {
+        if (scoreAnim.opacity <= 0) return;
+        
+        ctx.save();
+        ctx.globalAlpha = scoreAnim.opacity;
+        ctx.fillStyle = "#f1c40f";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "top"; 
+        ctx.font = `900 ${80 * scoreAnim.scale}px 'Segoe UI', sans-serif`;
+        
+        ctx.shadowColor = "rgba(0, 0, 0, 0.8)";
+        ctx.shadowBlur = 15;
+        // キャンバス上部中央に配置
+        ctx.fillText(scoreAnim.val, canvas.width / 2, 20);
+        ctx.restore();
     }
 
     function drawSoccerBall(x, y, radius, angle) {
@@ -529,33 +552,49 @@
 
     function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
+        
+        // 1. 背景グリッド
         ctx.strokeStyle = "rgba(255,255,255,0.05)";
+        ctx.lineWidth = 1;
         for(let i=0; i<canvas.width; i+=40) {
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
         }
         for(let i=0; i<canvas.height; i+=40) {
             ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
         }
+
+        // 2. スコア表示（最前面のボール/キャラより後ろに描画）
+        drawScoreText();
+
+        // 3. パーティクル
         particles.forEach(p => {
+            ctx.save();
             ctx.globalAlpha = p.life;
             ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, 2, 0, Math.PI*2); ctx.fill();
+            ctx.restore();
         });
-        ctx.globalAlpha = 1.0;
+
+        // 4. キャラクター
         drawCharacter(paddle.x, paddle.y, paddle.w, paddle.h);
+        
+        // 5. ボール（常に前景）
         balls.forEach(ball => drawSoccerBall(ball.x, ball.y, ball.radius, ball.angle));
     }
 
     function gameLoop() {
-        update();
-        draw();
-        if (!gameOver) requestAnimationFrame(gameLoop);
+        if (!gameOver) {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
     }
 
-    // Start
-    balls = [createBall()];
-    lastSpawnTime = Date.now();
-    requestAnimationFrame(gameLoop);
+    window.onload = function() {
+        const savedHighScore = localStorage.getItem(STORAGE_KEY) || "0";
+        startHighScoreText.innerText = savedHighScore;
+        draw();
+    };
 </script>
 </body>
 </html>
