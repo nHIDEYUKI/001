@@ -61,42 +61,49 @@
         }
 
         #controls {
-            display: flex;
             width: 100%;
             max-width: 480px;
             padding: 25px;
             box-sizing: border-box;
             position: relative;
-            gap: 15px;
         }
 
-        .control-btn {
-            flex: 1;
-            height: 90px;
+        .control-bar {
+            width: 100%;
+            height: 80px;
             background: rgba(255, 255, 255, 0.08);
             border: 3px solid rgba(255, 255, 255, 0.2);
+            border-radius: 40px;
+            display: flex;
+            overflow: hidden;
+            position: relative;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .control-zone {
+            flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
             color: white;
-            transition: all 0.1s;
-            user-select: none;
-            -webkit-tap-highlight-color: transparent;
+            font-weight: 900;
+            font-size: 14px;
+            opacity: 0.4;
+            transition: all 0.15s;
             pointer-events: none;
-            border-radius: 20px;
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
         }
 
-        .control-btn svg {
-            width: 50px;
-            height: 50px;
-            fill: currentColor;
-            opacity: 0.8;
+        .control-zone:last-child {
+            border-right: none;
         }
 
-        .control-btn.active {
+        .control-zone.active {
             background: var(--accent);
-            border-color: #fff;
-            transform: scale(0.96);
+            opacity: 1;
+            font-size: 18px;
+            box-shadow: inset 0 0 20px rgba(255, 255, 255, 0.2);
         }
 
         .modal {
@@ -267,11 +274,10 @@
     </div>
 
     <div id="controls">
-        <div id="btnLeft" class="control-btn">
-            <svg viewBox="0 0 24 24"><path d="M15.41 16.59L10.83 12l4.58-4.59L14 6l-6 6 6 6 1.41-1.41z"/></svg>
-        </div>
-        <div id="btnRight" class="control-btn">
-            <svg viewBox="0 0 24 24"><path d="M8.59 16.59L13.17 12 8.59 7.41 10 6l6 6-6 6-1.41-1.41z"/></svg>
+        <div id="controlBar" class="control-bar">
+            <div id="zoneLeft" class="control-zone">LEFT</div>
+            <div id="zoneStop" class="control-zone">STOP</div>
+            <div id="zoneRight" class="control-zone">RIGHT</div>
         </div>
     </div>
 
@@ -298,7 +304,7 @@
                             </svg>
                         </div>
                     </div>
-                    <span style="font-size: 14px; font-weight: 500;">Slide to move</span>
+                    <span style="font-size: 14px; font-weight: 500;">Slide on Bar</span>
                 </div>
             </div>
 
@@ -325,9 +331,10 @@
     const finalScoreText = document.getElementById("finalScore");
     const highScoreText = document.getElementById("highScore");
     const startHighScoreText = document.getElementById("startHighScore");
-    const controlsContainer = document.getElementById("controls");
-    const btnLeft = document.getElementById("btnLeft");
-    const btnRight = document.getElementById("btnRight");
+    const controlBar = document.getElementById("controlBar");
+    const zoneLeft = document.getElementById("zoneLeft");
+    const zoneStop = document.getElementById("zoneStop");
+    const zoneRight = document.getElementById("zoneRight");
 
     const STORAGE_KEY = 'heading_master_highscore_v1';
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -383,6 +390,7 @@
     let particles = [];
     let balls = [];
     let lastSpawnTime = 0;
+    let isTouchMode = false; // タッチ操作中かどうか
     
     const scoreAnim = {
         val: 0,
@@ -475,68 +483,85 @@
         requestAnimationFrame(gameLoop);
     }
 
+    // キーボード入力時のUI連動
+    function updateVisualFeedback() {
+        if (isTouchMode) return; // タッチ中はタッチ側のロジックに任せる
+
+        zoneLeft.classList.remove('active');
+        zoneStop.classList.remove('active');
+        zoneRight.classList.remove('active');
+
+        if (keys.left && !keys.right) {
+            zoneLeft.classList.add('active');
+        } else if (keys.right && !keys.left) {
+            zoneRight.classList.add('active');
+        } else {
+            // 何も押してない、もしくは両方押しはSTOP
+            zoneStop.classList.add('active');
+        }
+    }
+
     window.addEventListener("keydown", e => {
-        if(e.key === "ArrowLeft") {
-            keys.left = true;
-            btnLeft.classList.add('active');
-        }
-        if(e.key === "ArrowRight") {
-            keys.right = true;
-            btnRight.classList.add('active');
-        }
+        isTouchMode = false;
+        if(e.key === "ArrowLeft") keys.left = true;
+        if(e.key === "ArrowRight") keys.right = true;
+        updateVisualFeedback();
+        
         if(e.key === " " || e.key === "Enter") {
             if(!gameStarted) startGame();
             else if(gameOver) resetGame();
         }
     });
     window.addEventListener("keyup", e => {
-        if(e.key === "ArrowLeft") {
-            keys.left = false;
-            btnLeft.classList.remove('active');
-        }
-        if(e.key === "ArrowRight") {
-            keys.right = false;
-            btnRight.classList.remove('active');
-        }
+        if(e.key === "ArrowLeft") keys.left = false;
+        if(e.key === "ArrowRight") keys.right = false;
+        updateVisualFeedback();
     });
 
     function handlePointer(e) {
         e.preventDefault();
         if (gameOver) return;
+        isTouchMode = true;
 
         const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-        const rect = controlsContainer.getBoundingClientRect();
+        const rect = controlBar.getBoundingClientRect();
         const relX = clientX - rect.left;
-        const midPoint = rect.width / 2;
+        const width = rect.width;
 
-        if (relX >= 0 && relX <= rect.width) {
-            if (relX < midPoint) {
+        zoneLeft.classList.remove('active');
+        zoneStop.classList.remove('active');
+        zoneRight.classList.remove('active');
+
+        if (relX >= 0 && relX <= width) {
+            if (relX < width / 3) {
                 keys.left = true;
                 keys.right = false;
-                btnLeft.classList.add('active');
-                btnRight.classList.remove('active');
+                zoneLeft.classList.add('active');
+            } else if (relX < (width / 3) * 2) {
+                keys.left = false;
+                keys.right = false;
+                zoneStop.classList.add('active');
             } else {
                 keys.left = false;
                 keys.right = true;
-                btnLeft.classList.remove('active');
-                btnRight.classList.add('active');
+                zoneRight.classList.add('active');
             }
         }
     }
 
     function clearPointer(e) {
+        isTouchMode = false;
         keys.left = false;
         keys.right = false;
-        btnLeft.classList.remove('active');
-        btnRight.classList.remove('active');
+        updateVisualFeedback();
     }
 
-    controlsContainer.addEventListener("touchstart", handlePointer, {passive: false});
-    controlsContainer.addEventListener("touchmove", handlePointer, {passive: false});
-    controlsContainer.addEventListener("touchend", clearPointer, {passive: false});
-    controlsContainer.addEventListener("touchcancel", clearPointer, {passive: false});
+    controlBar.addEventListener("touchstart", handlePointer, {passive: false});
+    controlBar.addEventListener("touchmove", handlePointer, {passive: false});
+    controlBar.addEventListener("touchend", clearPointer, {passive: false});
+    controlBar.addEventListener("touchcancel", clearPointer, {passive: false});
 
-    controlsContainer.addEventListener("mousedown", handlePointer);
+    controlBar.addEventListener("mousedown", handlePointer);
     window.addEventListener("mousemove", (e) => {
         if (e.buttons === 1) handlePointer(e);
     });
@@ -715,7 +740,7 @@
             ctx.beginPath(); ctx.moveTo(i, 0); ctx.lineTo(i, canvas.height); ctx.stroke();
         }
         for(let i=0; i<canvas.height; i+=40) {
-            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.width, i); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, i); ctx.lineTo(canvas.height, i); ctx.stroke();
         }
 
         drawScoreText();
@@ -743,6 +768,7 @@
     window.onload = function() {
         const savedHighScore = localStorage.getItem(STORAGE_KEY) || "0";
         startHighScoreText.innerText = savedHighScore;
+        updateVisualFeedback(); // 初期のSTOPハイライト
         draw();
     };
 </script>
