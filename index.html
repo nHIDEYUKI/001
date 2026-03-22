@@ -74,7 +74,9 @@
             background: rgba(255, 255, 255, 0.08);
             border: 3px solid rgba(255, 255, 255, 0.2);
             border-radius: 40px;
-            display: flex;
+            display: grid;
+            /* STOP領域を狭めるため、1fr 0.4fr 1fr の比率に設定 (元は等間隔) */
+            grid-template-columns: 1fr 0.4fr 1fr;
             overflow: hidden;
             position: relative;
             user-select: none;
@@ -82,7 +84,6 @@
         }
 
         .control-zone {
-            flex: 1;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -131,7 +132,7 @@
             border-radius: 30px;
             border: 3px solid var(--primary);
             width: 90%;
-            max-width: 400px;
+            max-width: 440px;
             box-shadow: 0 0 60px rgba(0,0,0,0.8);
         }
 
@@ -145,10 +146,10 @@
 
         .instruction-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
             margin: 25px 0;
-            padding: 20px;
+            padding: 15px;
             background: rgba(255,255,255,0.05);
             border-radius: 20px;
         }
@@ -157,11 +158,11 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 12px;
+            gap: 10px;
         }
 
         .instruction-label {
-            font-size: 14px;
+            font-size: 12px;
             color: var(--white);
             font-weight: bold;
             text-transform: uppercase;
@@ -169,25 +170,37 @@
 
         .key-visual {
             display: flex;
-            gap: 8px;
+            gap: 4px;
         }
 
         .key {
             background: #444;
             border: 2px solid #777;
             border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 16px;
+            padding: 4px 8px;
+            font-size: 14px;
             font-weight: bold;
-            box-shadow: 0 3px 0 #111;
+            box-shadow: 0 2px 0 #111;
         }
 
         .touch-visual {
             position: relative;
-            width: 70px;
-            height: 35px;
+            width: 50px;
+            height: 30px;
             background: rgba(255,255,255,0.15);
-            border-radius: 20px;
+            border-radius: 15px;
+        }
+
+        .tilt-visual {
+            width: 40px;
+            height: 40px;
+            animation: tiltAnim 2s infinite ease-in-out;
+        }
+
+        @keyframes tiltAnim {
+            0% { transform: rotate(-20deg); }
+            50% { transform: rotate(20deg); }
+            100% { transform: rotate(-20deg); }
         }
 
         .touch-hand {
@@ -222,13 +235,14 @@
             color: #000;
             border: none;
             padding: 18px 40px;
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 900;
             border-radius: 50px;
             cursor: pointer;
             box-shadow: 0 8px 0 #c7a40c;
             transition: all 0.1s;
             width: 100%;
+            margin-bottom: 10px;
         }
 
         .action-btn:active {
@@ -237,9 +251,9 @@
         }
 
         .footer-note {
-            font-size: 16px;
+            font-size: 14px;
             color: var(--text-muted);
-            margin-top: 20px;
+            margin-top: 15px;
             font-weight: 500;
         }
 
@@ -293,23 +307,32 @@
                         <span class="key">←</span>
                         <span class="key">→</span>
                     </div>
-                    <span style="font-size: 14px; font-weight: 500;">Arrow Keys</span>
+                    <span style="font-size: 11px;">Arrows</span>
                 </div>
                 <div class="instruction-item">
-                    <span class="instruction-label">Smartphone</span>
+                    <span class="instruction-label">Touch</span>
                     <div class="touch-visual">
                         <div class="touch-hand">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="white">
                                 <path d="M9 11.24V7.5a2.5 2.5 0 0 1 5 0v3.74c1.21-.81 2-2.18 2-3.74C16 5.01 13.99 3 11.5 3S7 5.01 7 7.5c0 1.56.79 2.93 2 3.74zm9.84 4.63l-4.54-2.26c-.17-.07-.35-.11-.54-.11H13v-6c0-.83-.67-1.5-1.5-1.5S10 6.67 10 7.5v10.74c-3.6-.76-3.54-.75-3.67-.75-.31 0-.59.13-.79.33l-.79.8 4.94 4.94c.27.27.65.44 1.06.44h6.75c.75 0 1.36-.54 1.48-1.25l.47-3.21c.08-.51-.14-1.02-.58-1.27z"/>
                             </svg>
                         </div>
                     </div>
-                    <span style="font-size: 14px; font-weight: 500;">Slide on Bar</span>
+                    <span style="font-size: 11px;">Slide Bar</span>
+                </div>
+                <div class="instruction-item">
+                    <span class="instruction-label">Tilt</span>
+                    <div class="tilt-visual">
+                        <svg width="40" height="40" viewBox="0 0 24 24" fill="white">
+                            <path d="M17,1H7C5.34,1,4,2.34,4,4v16c0,1.66,1.34,3,3,3h10c1.66,0,3-1.34,3-3V4C20,2.34,18.66,1,17,1z M17,21H7c-0.55,0-1-0.45-1-1v-1 h12v1C18,20.55,17.55,21,17,21z M18,17H6V7h12V17z M18,5H6V4c0-0.55,0.45-1,1-1h10c0.55,0,1,0.45,1,1V5z"/>
+                        </svg>
+                    </div>
+                    <span style="font-size: 11px;">Phone Tilt</span>
                 </div>
             </div>
 
-            <button class="action-btn" onclick="startGame()">START GAME</button>
-            <p class="footer-note">Keep the ball in the air!</p>
+            <button class="action-btn" onclick="requestPermissionAndStart()">PLAY NOW</button>
+            <p class="footer-note">Use arrows, touch bar, or tilt your device!</p>
         </div>
     </div>
 
@@ -337,9 +360,16 @@
     const zoneRight = document.getElementById("zoneRight");
 
     const STORAGE_KEY = 'heading_master_highscore_v1';
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    let audioCtx;
+
+    function initAudio() {
+        if (!audioCtx) {
+            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+    }
 
     function playSound(type, comboCount = 0) {
+        if (!audioCtx) return;
         if (audioCtx.state === 'suspended') audioCtx.resume();
         const osc = audioCtx.createOscillator();
         const gain = audioCtx.createGain();
@@ -390,7 +420,8 @@
     let particles = [];
     let balls = [];
     let lastSpawnTime = 0;
-    let isTouchMode = false; // タッチ操作中かどうか
+    let isTouchMode = false; 
+    let tiltDx = 0; 
     
     const scoreAnim = {
         val: 0,
@@ -464,6 +495,56 @@
         }
     }
 
+    async function requestPermissionAndStart() {
+        initAudio();
+        
+        if (typeof DeviceOrientationEvent !== 'undefined' && typeof DeviceOrientationEvent.requestPermission === 'function') {
+            try {
+                const permission = await DeviceOrientationEvent.requestPermission();
+                if (permission === 'granted') {
+                    window.addEventListener('deviceorientation', handleOrientation);
+                }
+            } catch (err) {
+                console.error("Orientation permission error:", err);
+            }
+        } else {
+            window.addEventListener('deviceorientation', handleOrientation);
+        }
+        
+        startGame();
+    }
+
+    function handleOrientation(event) {
+        if (gameOver) return;
+        
+        let g = event.gamma;
+        if (g === null) return;
+
+        const deadzone = 5;
+        const maxTilt = 35;
+        
+        if (Math.abs(g) > deadzone) {
+            let normalized = (Math.abs(g) - deadzone) / (maxTilt - deadzone);
+            normalized = Math.min(1.0, Math.max(0, normalized));
+            if (g < 0) normalized *= -1;
+            
+            tiltDx = normalized * paddle.speed;
+            
+            if (!isTouchMode && !keys.left && !keys.right) {
+                zoneLeft.classList.toggle('active', g < -deadzone);
+                zoneRight.classList.toggle('active', g > deadzone);
+                zoneStop.classList.toggle('active', Math.abs(g) <= deadzone);
+            }
+        } else {
+            tiltDx = 0;
+            if (!isTouchMode && !keys.left && !keys.right) {
+                zoneLeft.classList.remove('active');
+                zoneRight.classList.remove('active');
+                zoneStop.classList.add('active');
+            }
+        }
+    }
+
     function startGame() {
         gameStarted = true;
         startModal.classList.remove("show");
@@ -471,6 +552,7 @@
     }
 
     function resetGame() {
+        initAudio();
         score = 0;
         combo = 0;
         gameOver = false;
@@ -483,9 +565,8 @@
         requestAnimationFrame(gameLoop);
     }
 
-    // キーボード入力時のUI連動
     function updateVisualFeedback() {
-        if (isTouchMode) return; // タッチ中はタッチ側のロジックに任せる
+        if (isTouchMode) return; 
 
         zoneLeft.classList.remove('active');
         zoneStop.classList.remove('active');
@@ -496,7 +577,6 @@
         } else if (keys.right && !keys.left) {
             zoneRight.classList.add('active');
         } else {
-            // 何も押してない、もしくは両方押しはSTOP
             zoneStop.classList.add('active');
         }
     }
@@ -508,7 +588,7 @@
         updateVisualFeedback();
         
         if(e.key === " " || e.key === "Enter") {
-            if(!gameStarted) startGame();
+            if(!gameStarted) requestPermissionAndStart();
             else if(gameOver) resetGame();
         }
     });
@@ -533,11 +613,17 @@
         zoneRight.classList.remove('active');
 
         if (relX >= 0 && relX <= width) {
-            if (relX < width / 3) {
+            // STOP領域を狭く設定したグリッド (1fr 0.4fr 1fr) に合わせた判定ロジック
+            // 全体の幅を 2.4ユニット (1 + 0.4 + 1) とみなす
+            const unit = width / 2.4;
+            const leftBoundary = unit;            // 左端から 1ユニット分
+            const rightBoundary = unit * 1.4;     // 左端から 1.4ユニット分
+
+            if (relX < leftBoundary) {
                 keys.left = true;
                 keys.right = false;
                 zoneLeft.classList.add('active');
-            } else if (relX < (width / 3) * 2) {
+            } else if (relX < rightBoundary) {
                 keys.left = false;
                 keys.right = false;
                 zoneStop.classList.add('active');
@@ -577,9 +663,16 @@
             lastSpawnTime = Date.now();
         }
 
-        if (keys.left) paddle.dx = -paddle.speed;
-        else if (keys.right) paddle.dx = paddle.speed;
-        else paddle.dx *= 0.8;
+        if (keys.left) {
+            paddle.dx = -paddle.speed;
+        } else if (keys.right) {
+            paddle.dx = paddle.speed;
+        } else if (Math.abs(tiltDx) > 0.1) {
+            paddle.dx = tiltDx;
+        } else {
+            paddle.dx *= 0.8;
+        }
+        
         paddle.x += paddle.dx;
         paddle.x = Math.max(paddle.w/2, Math.min(canvas.width - paddle.w/2, paddle.x));
 
@@ -768,7 +861,7 @@
     window.onload = function() {
         const savedHighScore = localStorage.getItem(STORAGE_KEY) || "0";
         startHighScoreText.innerText = savedHighScore;
-        updateVisualFeedback(); // 初期のSTOPハイライト
+        updateVisualFeedback(); 
         draw();
     };
 </script>
