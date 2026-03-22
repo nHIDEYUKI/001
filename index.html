@@ -125,10 +125,9 @@
             transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
 
-        /* アクティブ時に枠線を黄色に変更 */
         .control-bar.active {
             background: var(--panel-active-bg);
-            border-color: var(--primary); /* 説明欄と同じ黄色に変更 */
+            border-color: var(--primary);
             box-shadow: 0 0 20px rgba(241, 196, 15, 0.2), 0 10px 30px rgba(0,0,0,0.3);
         }
 
@@ -176,7 +175,6 @@
             letter-spacing: 1px;
         }
 
-        /* TUTORIAL STYLES */
         .tutorial-stage {
             margin: 15px 0;
             background: rgba(0,0,0,0.3);
@@ -198,7 +196,7 @@
 
         .tutorial-visuals {
             display: flex;
-            align-items: flex-end; /* Align bottoms of all child containers */
+            align-items: flex-end;
             justify-content: center;
             gap: 25px;
             margin-bottom: 10px;
@@ -209,7 +207,7 @@
             grid-template-columns: repeat(3, 40px);
             grid-template-rows: repeat(2, 40px);
             gap: 4px;
-            padding-bottom: 2px; /* Small offset to match the box-shadow/border bottom of the bar */
+            padding-bottom: 2px;
         }
 
         .key-box {
@@ -384,7 +382,6 @@
             <div class="tutorial-stage">
                 <div class="tutorial-title">HOLD TO MOVE RIGHT</div>
                 <div class="tutorial-visuals">
-                    <!-- Cursor Keys Visual -->
                     <div class="keys-container">
                         <div class="key-box key-up">↑</div>
                         <div class="key-box key-left">←</div>
@@ -392,9 +389,7 @@
                         <div class="key-box key-right">→</div>
                     </div>
                     
-                    <!-- Grouped Character above Button -->
                     <div class="touch-tutorial-group">
-                        <!-- Character Visual (Moving Right) -->
                         <div class="char-preview">
                             <svg viewBox="0 0 40 50">
                                 <rect x="5" y="25" width="30" height="20" rx="5" fill="#3498db" />
@@ -404,7 +399,6 @@
                             </svg>
                         </div>
 
-                        <!-- Control Bar Visual (Game Design) -->
                         <div class="bar-preview">
                             <svg class="bar-preview-active-svg" viewBox="0 0 24 24" fill="none" stroke-width="3">
                                 <path d="M5 12H19M19 12L12 5M19 12L12 19"/>
@@ -447,7 +441,7 @@
     const startBtn = document.getElementById("startBtn");
     const retryBtn = document.getElementById("retryBtn");
 
-    const STORAGE_KEY = 'heading_master_highscore_v2';
+    let sessionHighScore = 0; 
     let audioCtx;
     let animationId; 
     let isTransitioning = false; 
@@ -526,18 +520,29 @@
     const scoreAnim = { val: 0, opacity: 0, scale: 1.0, startTime: 0 };
     const SPAWN_INTERVAL = 2500; 
     const MAX_BALLS = 12;        
-    const STRESS_LIMIT = 1;
+    const STRESS_LIMIT = 5; // 破裂までのカウントを少し余裕を持たせる
 
     const paddle = {
         w: 60, h: 70, x: canvas.width * 0.7, y: canvas.height - 10,
-        baseSpeed: 5, speed: 5, dx: 0, color: "#ffdbac"
+        baseSpeed: 5, speed: 5, dx: 0, color: "#ffdbac",
+        stunned: false, stunTimer: 0
+    };
+
+    const DIFFICULTY_SETTINGS = {
+        gravity: { start: 0.1, end: 0.22 },
+        bounce: { start: -10, end: -13 },
+        maxVelocity: { start: 8, end: 14 }
     };
 
     function createBall() {
+        const difficulty = Math.min(score / 100, 1.0);
         return {
             x: Math.random() * (canvas.width - 100) + 50, y: 40, radius: 26,
             dx: (Math.random() - 0.5) * 6, dy: 1, 
-            gravity: 0.22, friction: 0.995, bounce: -13,
+            gravity: DIFFICULTY_SETTINGS.gravity.start + (DIFFICULTY_SETTINGS.gravity.end - DIFFICULTY_SETTINGS.gravity.start) * difficulty,
+            maxVelocity: DIFFICULTY_SETTINGS.maxVelocity.start + (DIFFICULTY_SETTINGS.maxVelocity.end - DIFFICULTY_SETTINGS.maxVelocity.start) * difficulty,
+            friction: 0.995, 
+            bounce: DIFFICULTY_SETTINGS.bounce.start + (DIFFICULTY_SETTINGS.bounce.end - DIFFICULTY_SETTINGS.bounce.start) * difficulty,
             angle: 0, rotationSpeed: (Math.random() - 0.5) * 0.2,
             squish: 0, squishAngle: 0, targetSquish: 0,
             stress: 0 
@@ -600,12 +605,14 @@
         lastSpawnTime = Date.now();
         paddle.x = canvas.width * 0.7;
         paddle.dx = 0;
+        paddle.stunned = false;
+        paddle.stunTimer = 0;
         particles = [];
         updateVisualFeedback();
     }
 
     function updateVisualFeedback() {
-        if (!gameStarted || gameOver || isTransitioning) {
+        if (!gameStarted || gameOver || isTransitioning || paddle.stunned) {
             controlBar.classList.remove('active');
             return;
         }
@@ -617,7 +624,7 @@
     }
 
     function setInputActive() {
-        if (gameOver || !gameStarted || isTransitioning) return;
+        if (gameOver || !gameStarted || isTransitioning || paddle.stunned) return;
         moveRight = true; isMoving = true;
         updateVisualFeedback();
     }
@@ -649,11 +656,28 @@
 
     function update() {
         if (gameOver || isTransitioning) return;
-        paddle.speed = paddle.baseSpeed + (balls.length * 1.5);
+
+        const difficulty = Math.min(score / 100, 1.0);
+        const currentGravity = DIFFICULTY_SETTINGS.gravity.start + (DIFFICULTY_SETTINGS.gravity.end - DIFFICULTY_SETTINGS.gravity.start) * difficulty;
+        const currentMaxVelocity = DIFFICULTY_SETTINGS.maxVelocity.start + (DIFFICULTY_SETTINGS.maxVelocity.end - DIFFICULTY_SETTINGS.maxVelocity.start) * difficulty;
+        const currentBounce = DIFFICULTY_SETTINGS.bounce.start + (DIFFICULTY_SETTINGS.bounce.end - DIFFICULTY_SETTINGS.bounce.start) * difficulty;
+
+        if (paddle.stunned) {
+            paddle.stunTimer--;
+            paddle.dx = 0;
+            if (paddle.stunTimer <= 0) {
+                paddle.stunned = false;
+                updateVisualFeedback();
+            }
+        } else {
+            paddle.speed = paddle.baseSpeed + (balls.length * 1.5);
+            paddle.dx = moveRight ? paddle.speed : -paddle.speed;
+        }
+
         if (Date.now() - lastSpawnTime > SPAWN_INTERVAL && balls.length < MAX_BALLS) {
             balls.push(createBall()); lastSpawnTime = Date.now();
         }
-        paddle.dx = moveRight ? paddle.speed : -paddle.speed;
+
         paddle.x += paddle.dx;
         const limit = paddle.w/2;
         if (paddle.x < limit) paddle.x = limit;
@@ -666,62 +690,108 @@
 
         for (let i = balls.length - 1; i >= 0; i--) {
             let ball = balls[i];
-            ball.dy += ball.gravity; ball.x += ball.dx; ball.y += ball.dy;
+            
+            ball.gravity = currentGravity;
+            ball.maxVelocity = currentMaxVelocity;
+            ball.bounce = currentBounce;
+
+            ball.dy = Math.min(ball.dy + ball.gravity, ball.maxVelocity);
+            ball.x += ball.dx; ball.y += ball.dy;
             ball.angle += ball.rotationSpeed; ball.dx *= ball.friction;
             ball.squish += (ball.targetSquish - ball.squish) * 0.25;
 
-            let hitWall = false;
+            // --- 壁判定 ---
+            let wallContact = false;
             if (ball.x < ball.radius) { 
-                ball.dx *= -0.8; ball.x = ball.radius; 
-                if (ball.y > 0) playSound('wall');
-                hitWall = true;
+                ball.dx = Math.abs(ball.dx) * 0.8; ball.x = ball.radius; 
+                if (ball.y > 0) { playSound('wall'); wallContact = true; }
             } else if (ball.x > canvas.width - ball.radius) { 
-                ball.dx *= -0.8; ball.x = canvas.width - ball.radius; 
-                if (ball.y > 0) playSound('wall');
-                hitWall = true;
+                ball.dx = -Math.abs(ball.dx) * 0.8; ball.x = canvas.width - ball.radius; 
+                if (ball.y > 0) { playSound('wall'); wallContact = true; }
             }
-            if (ball.y < ball.radius) { ball.dy *= -0.8; ball.y = ball.radius; playSound('wall'); }
+            if (ball.y < ball.radius) { ball.dy = Math.abs(ball.dy) * 0.8; ball.y = ball.radius; playSound('wall'); }
 
+            // キャラクター（円形頭部）との衝突判定
             const hCX = paddle.x; const hCY = paddle.y - paddle.h / 1.5; const hR = paddle.w / 2.2;
             const dX = ball.x - hCX; const dY = ball.y - hCY; const dist = Math.sqrt(dX * dX + dY * dY);
-            let hitPaddle = false;
+            const sumR = ball.radius + hR;
 
-            if (ball.dy > -1 && dist < ball.radius + hR) {
-                hitPaddle = true;
+            let paddleContact = false;
+
+            if (dist < sumR) {
+                paddleContact = true;
                 const angle = Math.atan2(dY, dX);
-                ball.dx = Math.cos(angle) * Math.abs(ball.bounce) * 0.8 + paddle.dx * 0.5;
-                ball.dy = -Math.abs(Math.sin(angle)) * Math.abs(ball.bounce);
-                ball.rotationSpeed = ball.dx * 0.05;
-                applySquish(ball, angle, 0.25);
+                const overlap = sumR - dist;
                 
-                if (ball.stress < STRESS_LIMIT) {
-                    score++; combo++;
-                    scoreAnim.val = score; scoreAnim.opacity = 1.0; scoreAnim.scale = 1.0; scoreAnim.startTime = Date.now();
-                    createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
-                    playSound('hit', combo);
+                // 押し出し
+                ball.x += Math.cos(angle) * overlap;
+                ball.y += Math.sin(angle) * overlap;
+
+                // 壁クランプ（再度）
+                if (ball.x < ball.radius) ball.x = ball.radius;
+                if (ball.x > canvas.width - ball.radius) ball.x = canvas.width - ball.radius;
+
+                // 打ち返し処理
+                if (ball.dy > -2) { 
+                    ball.dx = Math.cos(angle) * Math.abs(ball.bounce) * 0.8 + paddle.dx * 0.5;
+                    ball.dy = -Math.abs(Math.sin(angle)) * Math.abs(ball.bounce);
+                    ball.rotationSpeed = ball.dx * 0.05;
+                    applySquish(ball, angle, 0.25);
+
+                    if (!paddle.stunned) {
+                        score++; combo++;
+                        scoreAnim.val = score; scoreAnim.opacity = 1.0; scoreAnim.scale = 1.0; scoreAnim.startTime = Date.now();
+                        createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
+                        playSound('hit', combo);
+                    }
                 }
             }
 
-            if (hitWall && hitPaddle) {
-                ball.stress++;
+            // --- 押しつぶし（ストレス）判定の修正 ---
+            // ボールが「壁」と「キャラクター」の両方に同時に触れている場合のみストレスを溜める
+            const wallThreshold = 5;
+            const isAtLeftWall = (ball.x <= ball.radius + wallThreshold);
+            const isAtRightWall = (ball.x >= canvas.width - ball.radius - wallThreshold);
+            
+            // 物理的に挟まれているかのチェック（距離ベースで厳密に）
+            const isCrushedLeft = isAtLeftWall && (paddle.x - hR < ball.x + ball.radius);
+            const isCrushedRight = isAtRightWall && (paddle.x + hR > ball.x - ball.radius);
+
+            // 垂直方向の距離も考慮（頭の高さ付近にいるときだけ挟まるとみなす）
+            const isNearHeadHeight = Math.abs(ball.y - hCY) < ball.radius + hR;
+
+            if ((isCrushedLeft || isCrushedRight) && isNearHeadHeight) {
+                // キャラクターが壁に向かって動いている場合、ストレス増加速度アップ
+                if ((isCrushedLeft && paddle.dx < 0) || (isCrushedRight && paddle.dx > 0)) {
+                    ball.stress += 2;
+                } else {
+                    ball.stress += 1;
+                }
+
                 if (ball.stress >= STRESS_LIMIT) {
                     createParticles(ball.x, ball.y, "#e74c3c", 30, 15);
                     playSound('pop');
                     balls.splice(i, 1);
                     combo = 0;
+                    paddle.stunned = true;
+                    paddle.stunTimer = 60; 
+                    updateVisualFeedback();
                     if (balls.length === 0) endGame();
                     continue;
                 }
             } else {
-                ball.stress = 0;
+                // 挟まれていない場合はストレスを急速に減らす（通常の壁バウンドでは破裂しない）
+                ball.stress = 0; 
             }
 
             for (let j = i - 1; j >= 0; j--) checkBallCollision(ball, balls[j]);
+            
             if (ball.y > canvas.height + 50) {
                 balls.splice(i, 1); combo = 0; 
                 if (balls.length === 0) endGame();
             }
         }
+        
         particles.forEach((p, i) => {
             p.x += p.dx; p.y += p.dy; p.life -= 0.025;
             if(p.life <= 0) particles.splice(i, 1);
@@ -738,14 +808,13 @@
         fadeOverlay.classList.add("active");
         await new Promise(r => setTimeout(r, 450));
 
-        let saved = parseInt(localStorage.getItem(STORAGE_KEY)) || 0;
-        if (score > saved) {
-            saved = score; localStorage.setItem(STORAGE_KEY, saved.toString());
-            highScoreText.innerHTML = `${saved} <span style="color:#2ecc71;font-size:16px">NEW!</span>`;
+        if (score > sessionHighScore) {
+            sessionHighScore = score;
+            highScoreText.innerHTML = `${sessionHighScore} <span style="color:#2ecc71;font-size:16px">NEW!</span>`;
         } else {
-            highScoreText.innerText = saved;
+            highScoreText.innerText = sessionHighScore;
         }
-        startHighScoreText.innerText = saved;
+        startHighScoreText.innerText = sessionHighScore;
         finalScoreText.innerText = score;
 
         gameOverModal.classList.add("active");
@@ -778,13 +847,28 @@
         ctx.restore();
     }
 
-    function drawCharacter(x, y, w, h) {
-        ctx.save(); ctx.fillStyle = "#3498db";
+    function drawCharacter(x, y, w, h, isStunned) {
+        ctx.save(); 
+        if (isStunned) {
+            x += (Math.random() - 0.5) * 4;
+            y += (Math.random() - 0.5) * 4;
+        }
+        ctx.fillStyle = "#3498db";
         ctx.beginPath(); ctx.roundRect(x - w/2.5, y - h/2.5, w/1.25, h/2, 5); ctx.fill();
         ctx.fillStyle = paddle.color; ctx.beginPath(); ctx.ellipse(x, y - h/1.5, w/2.2, h/2.5, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x - 8, y - h/1.5 - 5, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(x + 8, y - h/1.5 - 5, 3, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y - h/1.5 + 5, 7, 0.2, Math.PI - 0.2); ctx.stroke();
+        
+        if (isStunned) {
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.moveTo(x - 12, y - h/1.5 - 8); ctx.lineTo(x - 4, y - h/1.5 - 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x - 4, y - h/1.5 - 8); ctx.lineTo(x - 12, y - h/1.5 - 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 4, y - h/1.5 - 8); ctx.lineTo(x + 12, y - h/1.5 - 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 12, y - h/1.5 - 8); ctx.lineTo(x + 4, y - h/1.5 - 2); ctx.stroke();
+            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x, y - h/1.5 + 8, 5, 0, Math.PI * 2); ctx.fill();
+        } else {
+            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x - 8, y - h/1.5 - 5, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + 8, y - h/1.5 - 5, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y - h/1.5 + 5, 7, 0.2, Math.PI - 0.2); ctx.stroke();
+        }
         ctx.restore();
     }
 
@@ -798,7 +882,7 @@
             ctx.save(); ctx.globalAlpha = p.life; ctx.fillStyle = p.color;
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
         });
-        drawCharacter(paddle.x, paddle.y, paddle.w, paddle.h);
+        drawCharacter(paddle.x, paddle.y, paddle.w, paddle.h, paddle.stunned);
         balls.forEach(drawSoccerBall);
     }
 
@@ -808,8 +892,8 @@
     }
 
     window.onload = () => {
-        const saved = localStorage.getItem(STORAGE_KEY) || "0";
-        startHighScoreText.innerText = saved; draw();
+        startHighScoreText.innerText = sessionHighScore; 
+        draw();
     };
 </script>
 </body>
