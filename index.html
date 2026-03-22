@@ -472,8 +472,18 @@
         } 
         else if (type === 'wall') {
             osc.type = 'triangle';
-            osc.frequency.setValueAtTime(220, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+            const baseFreq = 220;
+            osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.08);
+        }
+        else if (type === 'ball_collision') {
+            osc.type = 'triangle';
+            const baseFreq = 180;
+            osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.08);
@@ -527,11 +537,13 @@
         w: 60, h: 70, 
         x: canvas.width - 30,
         y: canvas.height - 10,
-        speed: 10,
+        maxSpeed: 10,
         dx: 0, 
         color: "#ffdbac",
         stunned: false, 
-        stunTimer: 0
+        stunTimer: 0,
+        // Target speed for inertial movement
+        targetSpeed: -10, 
     };
 
     const DIFFICULTY_SETTINGS = {
@@ -582,6 +594,10 @@
             b1.dx = b1.dx - (v1 - v2) * cos; b1.dy = b1.dy - (v1 - v2) * sin;
             b2.dx = b2.dx + (v1 - v2) * cos; b2.dy = b2.dy + (v1 - v2) * sin;
             applySquish(b1, angle, 0.2); applySquish(b2, angle + Math.PI, 0.2);
+            
+            if (b1.y > 0 && b2.y > 0) {
+                playSound('ball_collision');
+            }
         }
     }
 
@@ -611,6 +627,7 @@
         lastSpawnTime = Date.now();
         paddle.x = canvas.width - 30;
         paddle.dx = 0;
+        paddle.targetSpeed = -10;
         paddle.stunned = false;
         paddle.stunTimer = 0;
         particles = [];
@@ -632,11 +649,13 @@
     function setInputActive() {
         if (gameOver || !gameStarted || isTransitioning || paddle.stunned) return;
         moveRight = true; isMoving = true;
+        paddle.targetSpeed = paddle.maxSpeed; 
         updateVisualFeedback();
     }
 
     function setInputInactive() {
         moveRight = false; isMoving = false;
+        paddle.targetSpeed = -paddle.maxSpeed; 
         updateVisualFeedback();
     }
 
@@ -670,14 +689,20 @@
 
         if (paddle.stunned) {
             paddle.stunTimer--;
-            paddle.dx = 0;
+            paddle.dx *= 0.9; 
             if (paddle.stunTimer <= 0) {
                 paddle.stunned = false;
                 updateVisualFeedback();
             }
         } else {
-            paddle.speed = 10;
-            paddle.dx = moveRight ? paddle.speed : -paddle.speed;
+            // Inertial movement logic
+            const speedDiff = paddle.targetSpeed - paddle.dx;
+            
+            // Acceleration rate
+            // 0.15 reaches ~73% of target in 8 frames, creating an 8-step feel
+            const accelRate = 0.15; 
+            
+            paddle.dx += speedDiff * accelRate;
         }
 
         if (Date.now() - lastSpawnTime > SPAWN_INTERVAL && balls.length < MAX_BALLS) {
@@ -686,8 +711,14 @@
 
         paddle.x += paddle.dx;
         const limit = paddle.w/2;
-        if (paddle.x < limit) paddle.x = limit;
-        if (paddle.x > canvas.width - limit) paddle.x = canvas.width - limit;
+        if (paddle.x < limit) {
+            paddle.x = limit;
+            paddle.dx = 0; 
+        }
+        if (paddle.x > canvas.width - limit) {
+            paddle.x = canvas.width - limit;
+            paddle.dx = 0; 
+        }
 
         if (scoreAnim.opacity > 0) {
             const elapsed = Date.now() - scoreAnim.startTime;
