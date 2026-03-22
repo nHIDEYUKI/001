@@ -532,18 +532,21 @@
     const MAX_BALLS = 12;        
     const STRESS_LIMIT = 5; 
     const POP_SCORE_THRESHOLD = 30;
+    const MAX_ROTATION_SPEED = 0.15; // 回転角速度の上限
 
     const paddle = {
         w: 60, h: 70, 
         x: canvas.width - 30,
         y: canvas.height - 10,
+        offsetY: 0, 
         maxSpeed: 10,
         dx: 0, 
         color: "#ffdbac",
         stunned: false, 
         stunTimer: 0,
-        // Target speed for inertial movement
-        targetSpeed: -10, 
+        transitionDuration: 20, 
+        accelPerFrame: 10 / 20, 
+        lastMoveState: false 
     };
 
     const DIFFICULTY_SETTINGS = {
@@ -561,7 +564,7 @@
             maxVelocity: DIFFICULTY_SETTINGS.maxVelocity.start + (DIFFICULTY_SETTINGS.maxVelocity.end - DIFFICULTY_SETTINGS.maxVelocity.start) * difficulty,
             friction: 0.995, 
             bounce: DIFFICULTY_SETTINGS.bounce.start + (DIFFICULTY_SETTINGS.bounce.end - DIFFICULTY_SETTINGS.bounce.start) * difficulty,
-            angle: 0, rotationSpeed: (Math.random() - 0.5) * 0.2,
+            angle: 0, rotationSpeed: (Math.random() - 0.5) * 0.1,
             squish: 0, squishAngle: 0, targetSquish: 0,
             stress: 0 
         };
@@ -627,7 +630,8 @@
         lastSpawnTime = Date.now();
         paddle.x = canvas.width - 30;
         paddle.dx = 0;
-        paddle.targetSpeed = -10;
+        paddle.offsetY = 0;
+        paddle.lastMoveState = false;
         paddle.stunned = false;
         paddle.stunTimer = 0;
         particles = [];
@@ -648,14 +652,18 @@
 
     function setInputActive() {
         if (gameOver || !gameStarted || isTransitioning || paddle.stunned) return;
+        if (!moveRight) {
+            paddle.dx = 0;
+        }
         moveRight = true; isMoving = true;
-        paddle.targetSpeed = paddle.maxSpeed; 
         updateVisualFeedback();
     }
 
     function setInputInactive() {
+        if (moveRight) {
+            paddle.dx = 0;
+        }
         moveRight = false; isMoving = false;
-        paddle.targetSpeed = -paddle.maxSpeed; 
         updateVisualFeedback();
     }
 
@@ -687,22 +695,25 @@
         const currentMaxVelocity = DIFFICULTY_SETTINGS.maxVelocity.start + (DIFFICULTY_SETTINGS.maxVelocity.end - DIFFICULTY_SETTINGS.maxVelocity.start) * difficulty;
         const currentBounce = DIFFICULTY_SETTINGS.bounce.start + (DIFFICULTY_SETTINGS.bounce.end - DIFFICULTY_SETTINGS.bounce.start) * difficulty;
 
+        if (paddle.offsetY > 0) {
+            paddle.offsetY -= 1;
+        }
+
         if (paddle.stunned) {
             paddle.stunTimer--;
-            paddle.dx *= 0.9; 
+            paddle.dx = 0;
             if (paddle.stunTimer <= 0) {
                 paddle.stunned = false;
                 updateVisualFeedback();
             }
         } else {
-            // Inertial movement logic
-            const speedDiff = paddle.targetSpeed - paddle.dx;
-            
-            // Acceleration rate
-            // 0.15 reaches ~73% of target in 8 frames, creating an 8-step feel
-            const accelRate = 0.15; 
-            
-            paddle.dx += speedDiff * accelRate;
+            if (moveRight) {
+                paddle.dx += paddle.accelPerFrame;
+                if (paddle.dx > paddle.maxSpeed) paddle.dx = paddle.maxSpeed;
+            } else {
+                paddle.dx -= paddle.accelPerFrame;
+                if (paddle.dx < -paddle.maxSpeed) paddle.dx = -paddle.maxSpeed;
+            }
         }
 
         if (Date.now() - lastSpawnTime > SPAWN_INTERVAL && balls.length < MAX_BALLS) {
@@ -713,11 +724,11 @@
         const limit = paddle.w/2;
         if (paddle.x < limit) {
             paddle.x = limit;
-            paddle.dx = 0; 
+            paddle.dx = 0;
         }
         if (paddle.x > canvas.width - limit) {
             paddle.x = canvas.width - limit;
-            paddle.dx = 0; 
+            paddle.dx = 0;
         }
 
         if (scoreAnim.opacity > 0) {
@@ -734,7 +745,12 @@
 
             ball.dy = Math.min(ball.dy + ball.gravity, ball.maxVelocity);
             ball.x += ball.dx; ball.y += ball.dy;
-            ball.angle += ball.rotationSpeed; ball.dx *= ball.friction;
+            
+            // 角速度を一定範囲に制限
+            ball.rotationSpeed = Math.max(-MAX_ROTATION_SPEED, Math.min(MAX_ROTATION_SPEED, ball.rotationSpeed));
+            ball.angle += ball.rotationSpeed; 
+            
+            ball.dx *= ball.friction;
             ball.squish += (ball.targetSquish - ball.squish) * 0.25;
 
             if (ball.x < ball.radius) { 
@@ -748,7 +764,7 @@
 
             const hR = paddle.w / 1.8;
             const hCX = paddle.x; 
-            const hCY = paddle.y - paddle.h / 1.5; 
+            const hCY = paddle.y + paddle.offsetY - paddle.h / 1.5; 
             
             const dX = ball.x - hCX; 
             const dY = ball.y - hCY; 
@@ -769,13 +785,17 @@
                 if (dY < 0) { 
                     if (!paddle.stunned) {
                         score++; combo++;
+                        paddle.dx = 0; 
+                        paddle.offsetY = 20;
                         scoreAnim.val = score; scoreAnim.opacity = 1.0; scoreAnim.scale = 1.0; scoreAnim.startTime = Date.now();
                         createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
                         playSound('hit', combo);
                     }
                 }
 
-                ball.rotationSpeed = ball.dx * 0.05;
+                // 衝突時の回転変化も制限
+                const newRotation = ball.dx * 0.05;
+                ball.rotationSpeed = Math.max(-MAX_ROTATION_SPEED, Math.min(MAX_ROTATION_SPEED, newRotation));
                 applySquish(ball, angle, 0.25);
             }
 
@@ -864,16 +884,18 @@
     }
 
     function drawCharacter(x, y, w, h, isStunned) {
+        const drawY = y + paddle.offsetY;
+        
         ctx.save(); 
         if (isStunned) {
             x += (Math.random() - 0.5) * 4;
             y += (Math.random() - 0.5) * 4;
         }
         ctx.fillStyle = "#3498db";
-        ctx.beginPath(); ctx.roundRect(x - w/2.5, y - h/2.5, w/1.25, h/2, 5); ctx.fill();
+        ctx.beginPath(); ctx.roundRect(x - w/2.5, drawY - h/2.5, w/1.25, h/2, 5); ctx.fill();
         
         const hR = w / 1.8;
-        const hCY = y - h / 1.5;
+        const hCY = drawY - h / 1.5;
         ctx.fillStyle = paddle.color; 
         ctx.beginPath(); 
         ctx.arc(x, hCY, hR, 0, Math.PI * 2); 
