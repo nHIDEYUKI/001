@@ -77,18 +77,18 @@
         }
 
         #controls {
-            margin-top: 10px;
+            margin-top: 15px;
             display: flex;
             justify-content: center;
             width: 100%;
-            padding-bottom: 20px;
+            padding-bottom: 25px;
         }
 
         .control-bar {
-            height: 120px;
+            height: 160px;
             background: var(--panel-bg);
             border: 2px solid rgba(255, 255, 255, 0.2);
-            border-radius: 15px;
+            border-radius: 20px;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -113,16 +113,16 @@
         }
 
         .arrow-icon {
-            width: 60px;
-            height: 60px;
+            width: 80px;
+            height: 80px;
             fill: none;
             stroke: var(--white);
             stroke-width: 3;
             stroke-linecap: round;
             stroke-linejoin: round;
             opacity: 0.3;
-            transform: scale(0.9);
-            transition: all 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            transform: scale(1);
+            transition: opacity 0.15s ease, stroke 0.15s ease;
         }
 
         .control-bar.active {
@@ -133,7 +133,7 @@
 
         .control-bar.active .arrow-icon {
             opacity: 1;
-            transform: scale(1.15);
+            transform: scale(1);
             stroke: var(--primary);
         }
 
@@ -277,8 +277,8 @@
         }
 
         @keyframes icon-active-sync {
-            0%, 49.9% { opacity: 1; stroke: var(--primary); transform: scale(1.1); }
-            50%, 100% { opacity: 0.3; stroke: white; transform: scale(1); }
+            0%, 49.9% { opacity: 1; stroke: var(--primary); }
+            50%, 100% { opacity: 0.3; stroke: white; }
         }
 
         .char-preview {
@@ -520,18 +520,24 @@
     const scoreAnim = { val: 0, opacity: 0, scale: 1.0, startTime: 0 };
     const SPAWN_INTERVAL = 2500; 
     const MAX_BALLS = 12;        
-    const STRESS_LIMIT = 5; // 破裂までのカウントを少し余裕を持たせる
+    const STRESS_LIMIT = 5; 
+    const POP_SCORE_THRESHOLD = 30;
 
     const paddle = {
-        w: 60, h: 70, x: canvas.width * 0.7, y: canvas.height - 10,
-        baseSpeed: 5, speed: 5, dx: 0, color: "#ffdbac",
-        stunned: false, stunTimer: 0
+        w: 60, h: 70, 
+        x: canvas.width - 30,
+        y: canvas.height - 10,
+        speed: 10,
+        dx: 0, 
+        color: "#ffdbac",
+        stunned: false, 
+        stunTimer: 0
     };
 
     const DIFFICULTY_SETTINGS = {
         gravity: { start: 0.1, end: 0.22 },
         bounce: { start: -10, end: -13 },
-        maxVelocity: { start: 8, end: 14 }
+        maxVelocity: { start: 6, end: 14 }
     };
 
     function createBall() {
@@ -603,7 +609,7 @@
         scoreAnim.opacity = 0;
         balls = [createBall()];
         lastSpawnTime = Date.now();
-        paddle.x = canvas.width * 0.7;
+        paddle.x = canvas.width - 30;
         paddle.dx = 0;
         paddle.stunned = false;
         paddle.stunTimer = 0;
@@ -670,7 +676,7 @@
                 updateVisualFeedback();
             }
         } else {
-            paddle.speed = paddle.baseSpeed + (balls.length * 1.5);
+            paddle.speed = 10;
             paddle.dx = moveRight ? paddle.speed : -paddle.speed;
         }
 
@@ -700,44 +706,36 @@
             ball.angle += ball.rotationSpeed; ball.dx *= ball.friction;
             ball.squish += (ball.targetSquish - ball.squish) * 0.25;
 
-            // --- 壁判定 ---
-            let wallContact = false;
             if (ball.x < ball.radius) { 
                 ball.dx = Math.abs(ball.dx) * 0.8; ball.x = ball.radius; 
-                if (ball.y > 0) { playSound('wall'); wallContact = true; }
+                if (ball.y > 0) { playSound('wall'); }
             } else if (ball.x > canvas.width - ball.radius) { 
                 ball.dx = -Math.abs(ball.dx) * 0.8; ball.x = canvas.width - ball.radius; 
-                if (ball.y > 0) { playSound('wall'); wallContact = true; }
+                if (ball.y > 0) { playSound('wall'); }
             }
             if (ball.y < ball.radius) { ball.dy = Math.abs(ball.dy) * 0.8; ball.y = ball.radius; playSound('wall'); }
 
-            // キャラクター（円形頭部）との衝突判定
-            const hCX = paddle.x; const hCY = paddle.y - paddle.h / 1.5; const hR = paddle.w / 2.2;
-            const dX = ball.x - hCX; const dY = ball.y - hCY; const dist = Math.sqrt(dX * dX + dY * dY);
+            const hR = paddle.w / 1.8;
+            const hCX = paddle.x; 
+            const hCY = paddle.y - paddle.h / 1.5; 
+            
+            const dX = ball.x - hCX; 
+            const dY = ball.y - hCY; 
+            const dist = Math.sqrt(dX * dX + dY * dY);
             const sumR = ball.radius + hR;
 
-            let paddleContact = false;
-
             if (dist < sumR) {
-                paddleContact = true;
                 const angle = Math.atan2(dY, dX);
                 const overlap = sumR - dist;
                 
-                // 押し出し
                 ball.x += Math.cos(angle) * overlap;
                 ball.y += Math.sin(angle) * overlap;
-
-                // 壁クランプ（再度）
-                if (ball.x < ball.radius) ball.x = ball.radius;
-                if (ball.x > canvas.width - ball.radius) ball.x = canvas.width - ball.radius;
-
-                // 打ち返し処理
-                if (ball.dy > -2) { 
-                    ball.dx = Math.cos(angle) * Math.abs(ball.bounce) * 0.8 + paddle.dx * 0.5;
-                    ball.dy = -Math.abs(Math.sin(angle)) * Math.abs(ball.bounce);
-                    ball.rotationSpeed = ball.dx * 0.05;
-                    applySquish(ball, angle, 0.25);
-
+                
+                const impulse = Math.abs(ball.bounce);
+                ball.dx = Math.cos(angle) * impulse + paddle.dx * 0.4;
+                ball.dy = Math.sin(angle) * impulse;
+                
+                if (dY < 0) { 
                     if (!paddle.stunned) {
                         score++; combo++;
                         scoreAnim.val = score; scoreAnim.opacity = 1.0; scoreAnim.scale = 1.0; scoreAnim.startTime = Date.now();
@@ -745,47 +743,39 @@
                         playSound('hit', combo);
                     }
                 }
+
+                ball.rotationSpeed = ball.dx * 0.05;
+                applySquish(ball, angle, 0.25);
             }
 
-            // --- 押しつぶし（ストレス）判定の修正 ---
-            // ボールが「壁」と「キャラクター」の両方に同時に触れている場合のみストレスを溜める
             const wallThreshold = 5;
             const isAtLeftWall = (ball.x <= ball.radius + wallThreshold);
             const isAtRightWall = (ball.x >= canvas.width - ball.radius - wallThreshold);
-            
-            // 物理的に挟まれているかのチェック（距離ベースで厳密に）
             const isCrushedLeft = isAtLeftWall && (paddle.x - hR < ball.x + ball.radius);
             const isCrushedRight = isAtRightWall && (paddle.x + hR > ball.x - ball.radius);
-
-            // 垂直方向の距離も考慮（頭の高さ付近にいるときだけ挟まるとみなす）
             const isNearHeadHeight = Math.abs(ball.y - hCY) < ball.radius + hR;
 
-            if ((isCrushedLeft || isCrushedRight) && isNearHeadHeight) {
-                // キャラクターが壁に向かって動いている場合、ストレス増加速度アップ
+            if (score >= POP_SCORE_THRESHOLD && (isCrushedLeft || isCrushedRight) && isNearHeadHeight) {
                 if ((isCrushedLeft && paddle.dx < 0) || (isCrushedRight && paddle.dx > 0)) {
                     ball.stress += 2;
                 } else {
                     ball.stress += 1;
                 }
-
                 if (ball.stress >= STRESS_LIMIT) {
                     createParticles(ball.x, ball.y, "#e74c3c", 30, 15);
                     playSound('pop');
                     balls.splice(i, 1);
                     combo = 0;
-                    paddle.stunned = true;
-                    paddle.stunTimer = 60; 
+                    paddle.stunned = true; paddle.stunTimer = 60; 
                     updateVisualFeedback();
                     if (balls.length === 0) endGame();
                     continue;
                 }
             } else {
-                // 挟まれていない場合はストレスを急速に減らす（通常の壁バウンドでは破裂しない）
                 ball.stress = 0; 
             }
 
             for (let j = i - 1; j >= 0; j--) checkBallCollision(ball, balls[j]);
-            
             if (ball.y > canvas.height + 50) {
                 balls.splice(i, 1); combo = 0; 
                 if (balls.length === 0) endGame();
@@ -800,10 +790,8 @@
 
     async function endGame() {
         if (gameOver || isTransitioning) return;
-        gameOver = true;
-        isTransitioning = true;
+        gameOver = true; isTransitioning = true;
         setInputInactive();
-        
         playSound('over');
         fadeOverlay.classList.add("active");
         await new Promise(r => setTimeout(r, 450));
@@ -819,10 +807,7 @@
 
         gameOverModal.classList.add("active");
         fadeOverlay.classList.remove("active");
-        
-        setTimeout(() => {
-            isTransitioning = false;
-        }, 450);
+        setTimeout(() => { isTransitioning = false; }, 450);
     }
 
     function drawScoreText() {
@@ -855,19 +840,25 @@
         }
         ctx.fillStyle = "#3498db";
         ctx.beginPath(); ctx.roundRect(x - w/2.5, y - h/2.5, w/1.25, h/2, 5); ctx.fill();
-        ctx.fillStyle = paddle.color; ctx.beginPath(); ctx.ellipse(x, y - h/1.5, w/2.2, h/2.5, 0, 0, Math.PI * 2); ctx.fill();
+        
+        const hR = w / 1.8;
+        const hCY = y - h / 1.5;
+        ctx.fillStyle = paddle.color; 
+        ctx.beginPath(); 
+        ctx.arc(x, hCY, hR, 0, Math.PI * 2); 
+        ctx.fill();
         
         if (isStunned) {
             ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.lineCap = "round";
-            ctx.beginPath(); ctx.moveTo(x - 12, y - h/1.5 - 8); ctx.lineTo(x - 4, y - h/1.5 - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x - 4, y - h/1.5 - 8); ctx.lineTo(x - 12, y - h/1.5 - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x + 4, y - h/1.5 - 8); ctx.lineTo(x + 12, y - h/1.5 - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x + 12, y - h/1.5 - 8); ctx.lineTo(x + 4, y - h/1.5 - 2); ctx.stroke();
-            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x, y - h/1.5 + 8, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.moveTo(x - 12, hCY - 8); ctx.lineTo(x - 4, hCY - 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x - 4, hCY - 8); ctx.lineTo(x - 12, hCY - 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 4, hCY - 8); ctx.lineTo(x + 12, hCY - 2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 12, hCY - 8); ctx.lineTo(x + 4, hCY - 2); ctx.stroke();
+            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x, hCY + 8, 5, 0, Math.PI * 2); ctx.fill();
         } else {
-            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x - 8, y - h/1.5 - 5, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + 8, y - h/1.5 - 5, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y - h/1.5 + 5, 7, 0.2, Math.PI - 0.2); ctx.stroke();
+            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x - 8, hCY - 5, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.arc(x + 8, hCY - 5, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, hCY + 5, 7, 0.2, Math.PI - 0.2); ctx.stroke();
         }
         ctx.restore();
     }
