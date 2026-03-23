@@ -391,11 +391,15 @@
                     
                     <div class="touch-tutorial-group">
                         <div class="char-preview">
+                            <!-- 説明欄のキャラを以前のデザインに戻す -->
                             <svg viewBox="0 0 40 50">
                                 <rect x="5" y="25" width="30" height="20" rx="5" fill="#3498db" />
                                 <circle cx="20" cy="15" r="12" fill="#ffdbac" />
-                                <circle cx="15" cy="13" r="2" fill="black" />
-                                <circle cx="25" cy="13" r="2" fill="black" />
+                                <circle cx="15" cy="13" r="3" fill="white" />
+                                <circle cx="15" cy="13" r="1.5" fill="black" />
+                                <circle cx="25" cy="13" r="3" fill="white" />
+                                <circle cx="25" cy="13" r="1.5" fill="black" />
+                                <path d="M15 20 Q20 23 25 20" fill="none" stroke="black" stroke-width="2"/>
                             </svg>
                         </div>
 
@@ -465,7 +469,7 @@
             const freq = 400 + (Math.min(comboCount, 15) * 30);
             osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
             osc.frequency.exponentialRampToValueAtTime(freq * 0.5, audioCtx.currentTime + 0.1);
-            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.5, audioCtx.currentTime);
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.1);
@@ -483,10 +487,10 @@
             osc.type = 'triangle';
             const baseFreq = 180;
             osc.frequency.setValueAtTime(baseFreq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.12, audioCtx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.08);
+            gain.gain.setValueAtTime(0.7, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
             osc.start();
-            osc.stop(audioCtx.currentTime + 0.08);
+            osc.stop(audioCtx.currentTime + 0.12);
         }
         else if (type === 'pop') {
             osc.type = 'square';
@@ -501,10 +505,19 @@
             osc.type = 'sawtooth';
             osc.frequency.setValueAtTime(150, audioCtx.currentTime);
             osc.frequency.linearRampToValueAtTime(40, audioCtx.currentTime + 0.8);
-            gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.015, audioCtx.currentTime); 
             gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.8);
             osc.start();
             osc.stop(audioCtx.currentTime + 0.8);
+        }
+        else if (type === 'whoosh') {
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(100, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(400, audioCtx.currentTime + 0.5);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.9);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.6);
         }
     }
 
@@ -528,11 +541,11 @@
     let moveRight = false;
     
     const scoreAnim = { val: 0, opacity: 0, scale: 1.0, startTime: 0 };
-    const SPAWN_INTERVAL = 2500; 
+    const SPAWN_INTERVAL = 2400;
     const MAX_BALLS = 12;        
     const STRESS_LIMIT = 5; 
     const POP_SCORE_THRESHOLD = 30;
-    const MAX_ROTATION_SPEED = 0.15; // 回転角速度の上限
+    const MAX_ROTATION_SPEED = 0.15;
 
     const paddle = {
         w: 60, h: 70, 
@@ -557,20 +570,35 @@
 
     function createBall() {
         const difficulty = Math.min(score / 100, 1.0);
+        const radius = 26;
+        const side = Math.random() > 0.5 ? 1 : -1;
+        const initialDx = side * (1.5 + Math.random() * 3.5); 
+        const currentGravity = DIFFICULTY_SETTINGS.gravity.start + (DIFFICULTY_SETTINGS.gravity.end - DIFFICULTY_SETTINGS.gravity.start) * difficulty;
+        const spawnY = 80;
+        const targetPeakY = radius + 2;
+        const distanceToPeak = spawnY - targetPeakY; 
+        const initialDy = -Math.sqrt(2 * currentGravity * distanceToPeak);
+
+        playSound('whoosh');
+
         return {
-            x: Math.random() * (canvas.width - 100) + 50, y: 40, radius: 26,
-            dx: (Math.random() - 0.5) * 6, dy: 1, 
-            gravity: DIFFICULTY_SETTINGS.gravity.start + (DIFFICULTY_SETTINGS.gravity.end - DIFFICULTY_SETTINGS.gravity.start) * difficulty,
+            x: Math.random() * (canvas.width - 150) + 75, 
+            y: spawnY, 
+            z: 100, 
+            radius: radius,
+            dx: initialDx, 
+            dy: initialDy, 
+            gravity: currentGravity,
             maxVelocity: DIFFICULTY_SETTINGS.maxVelocity.start + (DIFFICULTY_SETTINGS.maxVelocity.end - DIFFICULTY_SETTINGS.maxVelocity.start) * difficulty,
             friction: 0.995, 
             bounce: DIFFICULTY_SETTINGS.bounce.start + (DIFFICULTY_SETTINGS.bounce.end - DIFFICULTY_SETTINGS.bounce.start) * difficulty,
-            angle: 0, rotationSpeed: (Math.random() - 0.5) * 0.1,
+            angle: 0, rotationSpeed: side * 0.05,
             squish: 0, squishAngle: 0, targetSquish: 0,
             stress: 0 
         };
     }
 
-    function applySquish(ball, angle, intensity = 0.25) {
+    function applySquish(ball, angle, intensity = 0.4) {
         ball.squish = intensity; ball.squishAngle = angle;
     }
 
@@ -584,7 +612,9 @@
     }
 
     function checkBallCollision(b1, b2) {
+        if (b1.z > 0 || b2.z > 0) return;
         if (b1.y < 0 || b2.y < 0) return;
+
         const dx = b2.x - b1.x; const dy = b2.y - b1.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
         if (dist < b1.radius + b2.radius) {
@@ -596,7 +626,9 @@
             const v1 = b1.dx * cos + b1.dy * sin; const v2 = b2.dx * cos + b2.dy * sin;
             b1.dx = b1.dx - (v1 - v2) * cos; b1.dy = b1.dy - (v1 - v2) * sin;
             b2.dx = b2.dx + (v1 - v2) * cos; b2.dy = b2.dy + (v1 - v2) * sin;
-            applySquish(b1, angle, 0.2); applySquish(b2, angle + Math.PI, 0.2);
+            
+            applySquish(b1, angle, 0.2); 
+            applySquish(b2, angle + Math.PI, 0.2);
             
             if (b1.y > 0 && b2.y > 0) {
                 playSound('ball_collision');
@@ -626,8 +658,8 @@
     function resetGameState() {
         score = 0; combo = 0;
         scoreAnim.opacity = 0;
-        balls = [createBall()];
-        lastSpawnTime = Date.now();
+        balls = [];
+        lastSpawnTime = Date.now() - (SPAWN_INTERVAL - 500); 
         paddle.x = canvas.width - 30;
         paddle.dx = 0;
         paddle.offsetY = 0;
@@ -696,7 +728,8 @@
         const currentBounce = DIFFICULTY_SETTINGS.bounce.start + (DIFFICULTY_SETTINGS.bounce.end - DIFFICULTY_SETTINGS.bounce.start) * difficulty;
 
         if (paddle.offsetY > 0) {
-            paddle.offsetY -= 1;
+            paddle.offsetY *= 0.85; 
+            if (paddle.offsetY < 0.5) paddle.offsetY = 0;
         }
 
         if (paddle.stunned) {
@@ -722,14 +755,8 @@
 
         paddle.x += paddle.dx;
         const limit = paddle.w/2;
-        if (paddle.x < limit) {
-            paddle.x = limit;
-            paddle.dx = 0;
-        }
-        if (paddle.x > canvas.width - limit) {
-            paddle.x = canvas.width - limit;
-            paddle.dx = 0;
-        }
+        if (paddle.x < limit) { paddle.x = limit; paddle.dx = 0; }
+        if (paddle.x > canvas.width - limit) { paddle.x = canvas.width - limit; paddle.dx = 0; }
 
         if (scoreAnim.opacity > 0) {
             const elapsed = Date.now() - scoreAnim.startTime;
@@ -739,6 +766,13 @@
         for (let i = balls.length - 1; i >= 0; i--) {
             let ball = balls[i];
             
+            if (ball.z > 0) {
+                ball.z -= 2.5; 
+                if (ball.z <= 0) {
+                    ball.z = 0;
+                }
+            }
+
             ball.gravity = currentGravity;
             ball.maxVelocity = currentMaxVelocity;
             ball.bounce = currentBounce;
@@ -746,21 +780,40 @@
             ball.dy = Math.min(ball.dy + ball.gravity, ball.maxVelocity);
             ball.x += ball.dx; ball.y += ball.dy;
             
-            // 角速度を一定範囲に制限
             ball.rotationSpeed = Math.max(-MAX_ROTATION_SPEED, Math.min(MAX_ROTATION_SPEED, ball.rotationSpeed));
             ball.angle += ball.rotationSpeed; 
             
             ball.dx *= ball.friction;
-            ball.squish += (ball.targetSquish - ball.squish) * 0.25;
+            ball.squish += (ball.targetSquish - ball.squish) * 0.15; 
 
             if (ball.x < ball.radius) { 
                 ball.dx = Math.abs(ball.dx) * 0.8; ball.x = ball.radius; 
-                if (ball.y > 0) { playSound('wall'); }
+                if (ball.z <= 0 && ball.y > 0) { 
+                    playSound('wall');
+                    applySquish(ball, 0, 0.2); 
+                }
             } else if (ball.x > canvas.width - ball.radius) { 
                 ball.dx = -Math.abs(ball.dx) * 0.8; ball.x = canvas.width - ball.radius; 
-                if (ball.y > 0) { playSound('wall'); }
+                if (ball.z <= 0 && ball.y > 0) { 
+                    playSound('wall');
+                    applySquish(ball, Math.PI, 0.2); 
+                }
             }
-            if (ball.y < ball.radius) { ball.dy = Math.abs(ball.dy) * 0.8; ball.y = ball.radius; playSound('wall'); }
+            
+            if (ball.z <= 0 && ball.y < ball.radius) { 
+                ball.dy = Math.abs(ball.dy) * 0.8; 
+                ball.y = ball.radius; 
+                playSound('wall'); 
+                applySquish(ball, -Math.PI/2, 0.2); 
+            }
+
+            if (ball.z > 0) {
+                if (ball.y > canvas.height + 50) {
+                    balls.splice(i, 1);
+                    if (balls.length === 0) endGame();
+                }
+                continue; 
+            }
 
             const hR = paddle.w / 1.8;
             const hCX = paddle.x; 
@@ -786,17 +839,16 @@
                     if (!paddle.stunned) {
                         score++; combo++;
                         paddle.dx = 0; 
-                        paddle.offsetY = 20;
+                        paddle.offsetY = 25; 
                         scoreAnim.val = score; scoreAnim.opacity = 1.0; scoreAnim.scale = 1.0; scoreAnim.startTime = Date.now();
                         createParticles(ball.x, ball.y + ball.radius, "#f1c40f");
                         playSound('hit', combo);
                     }
                 }
-
-                // 衝突時の回転変化も制限
                 const newRotation = ball.dx * 0.05;
                 ball.rotationSpeed = Math.max(-MAX_ROTATION_SPEED, Math.min(MAX_ROTATION_SPEED, newRotation));
-                applySquish(ball, angle, 0.25);
+                
+                applySquish(ball, angle, 0.3);
             }
 
             const wallThreshold = 5;
@@ -846,7 +898,6 @@
         playSound('over');
         fadeOverlay.classList.add("active");
         await new Promise(r => setTimeout(r, 450));
-
         if (score > sessionHighScore) {
             sessionHighScore = score;
             highScoreText.innerHTML = `${sessionHighScore} <span style="color:#2ecc71;font-size:16px">NEW!</span>`;
@@ -855,7 +906,6 @@
         }
         startHighScoreText.innerText = sessionHighScore;
         finalScoreText.innerText = score;
-
         gameOverModal.classList.add("active");
         fadeOverlay.classList.remove("active");
         setTimeout(() => { isTransitioning = false; }, 450);
@@ -869,49 +919,115 @@
     }
 
     function drawSoccerBall(ball) {
-        ctx.save(); ctx.translate(ball.x, ball.y); ctx.rotate(ball.squishAngle); ctx.scale(1 - ball.squish, 1 + ball.squish);
-        ctx.rotate(-ball.squishAngle); ctx.rotate(ball.angle);
-        ctx.beginPath(); ctx.arc(0, 0, ball.radius, 0, Math.PI * 2);
-        const grad = ctx.createRadialGradient(-ball.radius*0.3, -ball.radius*0.3, ball.radius*0.1, 0, 0, ball.radius);
-        grad.addColorStop(0, "#fff"); grad.addColorStop(1, "#888");
-        ctx.fillStyle = grad; ctx.fill(); ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.stroke();
-        ctx.fillStyle = "#222";
+        const visualScale = 1 - (ball.z / 150);
+        const radius = ball.radius * visualScale;
+        const opacity = 1 - (ball.z / 120);
+
+        ctx.save(); 
+        ctx.translate(ball.x, ball.y); 
+        ctx.globalAlpha = opacity;
+        
+        ctx.rotate(ball.squishAngle); 
+        ctx.scale(1 - ball.squish, 1 + ball.squish);
+        ctx.rotate(-ball.squishAngle); 
+        ctx.rotate(ball.angle);
+
+        ctx.beginPath(); ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        
+        const darkFactor = visualScale * 255;
+        const color1 = `rgb(${darkFactor}, ${darkFactor}, ${darkFactor})`;
+        const color2 = `rgb(${darkFactor/2}, ${darkFactor/2}, ${darkFactor/2})`;
+
+        const grad = ctx.createRadialGradient(-radius*0.3, -radius*0.3, radius*0.1, 0, 0, radius);
+        grad.addColorStop(0, color1); grad.addColorStop(1, color2);
+        
+        ctx.fillStyle = grad; ctx.fill(); 
+        ctx.strokeStyle = `rgba(0,0,0,${opacity})`; ctx.lineWidth = 2 * visualScale; 
+        ctx.stroke();
+
+        ctx.fillStyle = `rgba(34,34,34,${opacity})`;
         for (let i = 0; i < 5; i++) {
             ctx.beginPath(); const a = (Math.PI * 2 / 5) * i;
-            ctx.arc(Math.cos(a)*ball.radius*0.6, Math.sin(a)*ball.radius*0.6, ball.radius*0.28, 0, Math.PI*2); ctx.fill();
+            ctx.arc(Math.cos(a)*radius*0.6, Math.sin(a)*radius*0.6, radius*0.28, 0, Math.PI*2); ctx.fill();
         }
         ctx.restore();
     }
 
     function drawCharacter(x, y, w, h, isStunned) {
         const drawY = y + paddle.offsetY;
-        
+        const hR = w / 1.8;
+        const hCY = drawY - h / 1.5;
+
         ctx.save(); 
         if (isStunned) {
             x += (Math.random() - 0.5) * 4;
             y += (Math.random() - 0.5) * 4;
         }
+        
         ctx.fillStyle = "#3498db";
         ctx.beginPath(); ctx.roundRect(x - w/2.5, drawY - h/2.5, w/1.25, h/2, 5); ctx.fill();
         
-        const hR = w / 1.8;
-        const hCY = drawY - h / 1.5;
         ctx.fillStyle = paddle.color; 
-        ctx.beginPath(); 
-        ctx.arc(x, hCY, hR, 0, Math.PI * 2); 
-        ctx.fill();
+        ctx.beginPath(); ctx.arc(x, hCY, hR, 0, Math.PI * 2); ctx.fill();
         
         if (isStunned) {
-            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.lineCap = "round";
-            ctx.beginPath(); ctx.moveTo(x - 12, hCY - 8); ctx.lineTo(x - 4, hCY - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x - 4, hCY - 8); ctx.lineTo(x - 12, hCY - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x + 4, hCY - 8); ctx.lineTo(x + 12, hCY - 2); ctx.stroke();
-            ctx.beginPath(); ctx.moveTo(x + 12, hCY - 8); ctx.lineTo(x + 4, hCY - 2); ctx.stroke();
-            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x, hCY + 8, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = "#000"; ctx.lineWidth = 3; ctx.lineCap = "round";
+            ctx.beginPath(); ctx.moveTo(x - 15, hCY - 14); ctx.lineTo(x - 5, hCY - 4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x - 5, hCY - 14); ctx.lineTo(x - 15, hCY - 4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 5, hCY - 14); ctx.lineTo(x + 15, hCY - 4); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(x + 15, hCY - 14); ctx.lineTo(x + 5, hCY - 4); ctx.stroke();
+            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x, hCY + 18, 7, 0, Math.PI * 2); ctx.fill();
         } else {
-            ctx.fillStyle = "#000"; ctx.beginPath(); ctx.arc(x - 8, hCY - 5, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.beginPath(); ctx.arc(x + 8, hCY - 5, 3, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, hCY + 5, 7, 0.2, Math.PI - 0.2); ctx.stroke();
+            let targetBall = null;
+            let minDist = Infinity;
+            balls.forEach(b => {
+                if (b.z > 50) return; 
+                const d = Math.sqrt((b.x - x)**2 + (b.y - hCY)**2);
+                if (d < minDist) { minDist = d; targetBall = b; }
+            });
+
+            // ゲーム内キャラは指定通り拡大白目と広い間隔を維持
+            const eyeYPos = hCY - 10; 
+            const mouthYPos = hCY + 16; 
+            const whiteRadius = 10; 
+            const blackRadius = 4.5;
+            const maxOffset = 5;
+
+            const drawEye = (eyeX, eyeY) => {
+                ctx.fillStyle = "rgba(255,255,255,0.3)";
+                ctx.beginPath(); ctx.arc(eyeX, eyeY, whiteRadius + 1.5, 0, Math.PI * 2); ctx.fill();
+                ctx.fillStyle = "#ffffff";
+                ctx.beginPath(); ctx.arc(eyeX, eyeY, whiteRadius, 0, Math.PI * 2); ctx.fill();
+                
+                let lookX = 0;
+                let lookY = 0;
+                if (targetBall) {
+                    const angle = Math.atan2(targetBall.y - eyeY, targetBall.x - eyeX);
+                    lookX = Math.cos(angle) * maxOffset;
+                    lookY = Math.sin(angle) * maxOffset;
+                }
+                
+                ctx.fillStyle = "#000000";
+                ctx.beginPath(); ctx.arc(eyeX + lookX, eyeY + lookY, blackRadius, 0, Math.PI * 2); ctx.fill();
+            };
+
+            drawEye(x - 13, eyeYPos);
+            drawEye(x + 13, eyeYPos);
+
+            ctx.strokeStyle = "#000"; 
+            ctx.lineWidth = 3.5;
+            ctx.lineCap = "round";
+            
+            if (paddle.offsetY > 5) {
+                ctx.beginPath();
+                ctx.moveTo(x - 12, mouthYPos);
+                ctx.lineTo(x + 12, mouthYPos);
+                ctx.stroke();
+            } else {
+                ctx.beginPath(); 
+                ctx.arc(x, mouthYPos - 5, 12, 0.2, Math.PI - 0.2); 
+                ctx.stroke();
+            }
         }
         ctx.restore();
     }
@@ -927,7 +1043,9 @@
             ctx.beginPath(); ctx.arc(p.x, p.y, p.size, 0, Math.PI*2); ctx.fill(); ctx.restore();
         });
         drawCharacter(paddle.x, paddle.y, paddle.w, paddle.h, paddle.stunned);
-        balls.forEach(drawSoccerBall);
+        
+        const sortedBalls = [...balls].sort((a, b) => b.z - a.z);
+        sortedBalls.forEach(drawSoccerBall);
     }
 
     function gameLoop() {
