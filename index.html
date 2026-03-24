@@ -30,14 +30,16 @@
             touch-action: none;
         }
 
+        /* --- URL表示のレスポンシブ対応 --- */
         .game-url {
-            font-size: 22px;
+            font-size: clamp(14px, 4.5vw, 22px); /* 画面幅に合わせて可変 */
             font-weight: 900;
             color: var(--primary);
             text-transform: uppercase;
-            letter-spacing: 4px;
+            letter-spacing: clamp(1px, 1vw, 4px); /* 文字間隔も可変に */
             text-shadow: 0 0 12px rgba(241, 196, 15, 0.6);
             margin-bottom: 5px;
+            white-space: nowrap; /* 改行を禁止 */
         }
 
         #qrcode-container {
@@ -59,15 +61,17 @@
             background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
         }
 
+        /* --- メインタイトルのレスポンシブ対応 --- */
         #game-title {
-            font-size: 32px;
+            font-size: clamp(24px, 8vw, 32px); /* 画面幅に合わせて可変 */
             font-weight: 900;
             margin: 0;
             color: var(--primary);
             text-transform: uppercase;
-            letter-spacing: 5px;
+            letter-spacing: clamp(1px, 1.2vw, 5px);
             text-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
             line-height: 1.1;
+            white-space: nowrap; /* 改行を禁止 */
         }
 
         #canvas-container {
@@ -180,9 +184,8 @@
             opacity: 1;
         }
 
-        /* 修正箇所: box-sizingを追加 */
         .modal-content {
-            box-sizing: border-box; /* paddingとborderをwidthに含める */
+            box-sizing: border-box;
             text-align: center;
             padding: 30px 25px;
             background: #111;
@@ -194,8 +197,9 @@
             transform: scale(1);
         }
 
+        /* --- モーダル内のタイトルのレスポンシブ対応 --- */
         .modal-title {
-            font-size: 36px;
+            font-size: clamp(28px, 9vw, 36px);
             font-weight: 900;
             color: var(--primary);
             margin-bottom: 25px;
@@ -203,6 +207,7 @@
             line-height: 1.1;
             text-transform: uppercase;
             text-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
+            white-space: nowrap; /* 改行を禁止 */
         }
 
         .tutorial-stage {
@@ -457,7 +462,6 @@
     </div>
 
 <script>
-    // --- (スクリプト部分は変更なしですがQRコード生成を含めて掲載) ---
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const startModal = document.getElementById("startModal");
@@ -476,7 +480,7 @@
 
     function generateQRCode() {
         const qrContainer = document.getElementById("qrcode");
-        qrContainer.innerHTML = ""; // 重複防止
+        qrContainer.innerHTML = "";
         new QRCode(qrContainer, {
             text: "https://nhideyuki.github.io/001/",
             width: 120,
