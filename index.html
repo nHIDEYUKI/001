@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>HEADING MASTER</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
         :root {
             --primary: #f1c40f;
@@ -29,21 +30,46 @@
             touch-action: none;
         }
 
+        /* URL表示用のスタイル */
+        .game-url {
+            font-size: 22px;
+            font-weight: 900;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 4px;
+            text-shadow: 0 0 12px rgba(241, 196, 15, 0.6);
+            margin-bottom: 5px;
+        }
+
+        /* QRコード表示エリアのスタイル */
+        #qrcode-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        #qrcode {
+            padding: 10px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.5);
+        }
+
         #header {
             width: 100%;
-            padding: 15px 0 5px 0;
+            padding: 10px 0 5px 0;
             text-align: center;
             background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent);
         }
 
         #game-title {
-            font-size: 28px;
+            font-size: 32px;
             font-weight: 900;
             margin: 0;
             color: var(--primary);
             text-transform: uppercase;
-            letter-spacing: 3px;
+            letter-spacing: 5px;
             text-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
+            line-height: 1.1;
         }
 
         #canvas-container {
@@ -66,7 +92,7 @@
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
             background: black;
-            z-index: 200;
+            z-index: 300; 
             pointer-events: none;
             opacity: 0;
             transition: opacity 0.4s ease-in-out;
@@ -85,7 +111,6 @@
         }
 
         .control-bar {
-            height: 160px;
             background: var(--panel-bg);
             border: 2px solid rgba(255, 255, 255, 0.2);
             border-radius: 20px;
@@ -113,8 +138,10 @@
         }
 
         .arrow-icon {
-            width: 80px;
-            height: 80px;
+            width: 35%; 
+            height: 35%;
+            max-width: 80px;
+            max-height: 80px;
             fill: none;
             stroke: var(--white);
             stroke-width: 3;
@@ -133,14 +160,14 @@
 
         .control-bar.active .arrow-icon {
             opacity: 1;
-            transform: scale(1);
+            transform: scale(1.1);
             stroke: var(--primary);
         }
 
         .modal {
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
+            background: #000;
             display: flex;
             justify-content: center;
             align-items: center;
@@ -158,7 +185,7 @@
         .modal-content {
             text-align: center;
             padding: 30px 25px;
-            background: #222;
+            background: #111;
             border-radius: 30px;
             border: 3px solid var(--primary);
             width: 90%;
@@ -171,27 +198,21 @@
             font-size: 36px;
             font-weight: 900;
             color: var(--primary);
-            margin-bottom: 5px;
+            margin-bottom: 25px;
             letter-spacing: 1px;
+            line-height: 1.1;
+            text-transform: uppercase;
+            text-shadow: 0 0 15px rgba(241, 196, 15, 0.6);
         }
 
         .tutorial-stage {
             margin: 15px 0;
-            background: rgba(0,0,0,0.3);
+            background: rgba(255,255,255,0.03);
             border-radius: 20px;
             padding: 20px 15px;
-            border: 1px solid rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.05);
             position: relative;
             overflow: hidden;
-        }
-
-        .tutorial-title {
-            font-size: 13px;
-            font-weight: 800;
-            color: var(--primary);
-            margin-bottom: 20px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .tutorial-visuals {
@@ -211,8 +232,8 @@
         }
 
         .key-box {
-            background: #333;
-            border: 2px solid #555;
+            background: #222;
+            border: 2px solid #444;
             border-radius: 6px;
             width: 38px;
             height: 38px;
@@ -221,8 +242,8 @@
             justify-content: center;
             font-size: 18px;
             font-weight: bold;
-            color: rgba(255,255,255,0.4);
-            box-shadow: 0 3px 0 #111;
+            color: rgba(255,255,255,0.3);
+            box-shadow: 0 3px 0 #000;
         }
 
         .key-up { grid-column: 2; grid-row: 1; }
@@ -235,8 +256,8 @@
         }
 
         @keyframes key-active-sync {
-            0%, 49.9% { background: var(--accent); border-color: white; color: white; transform: translateY(2px); box-shadow: 0 1px 0 #111; }
-            50%, 100% { background: #333; border-color: #555; color: rgba(255,255,255,0.4); transform: translateY(0); box-shadow: 0 3px 0 #111; }
+            0%, 49.9% { background: var(--accent); border-color: white; color: white; transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+            50%, 100% { background: #222; border-color: #444; color: rgba(255,255,255,0.3); transform: translateY(0); box-shadow: 0 3px 0 #000; }
         }
 
         .touch-tutorial-group {
@@ -357,6 +378,7 @@
     <div id="fade-overlay"></div>
 
     <div id="header">
+        <div class="game-url">nhideyuki.github.io/001/</div>
         <h1 id="game-title">HEADING MASTER</h1>
     </div>
 
@@ -376,11 +398,14 @@
 
     <div id="startModal" class="modal active">
         <div class="modal-content">
+            <div id="qrcode-container">
+                <div id="qrcode"></div>
+            </div>
+            
+            <div class="game-url">nhideyuki.github.io/001/</div>
             <div class="modal-title">HEADING MASTER</div>
-            <div class="score-row highscore-row">HIGH SCORE: <span id="startHighScore">0</span></div>
             
             <div class="tutorial-stage">
-                <div class="tutorial-title">HOLD TO MOVE RIGHT</div>
                 <div class="tutorial-visuals">
                     <div class="keys-container">
                         <div class="key-box key-up">↑</div>
@@ -391,7 +416,6 @@
                     
                     <div class="touch-tutorial-group">
                         <div class="char-preview">
-                            <!-- 説明欄のキャラを以前のデザインに戻す -->
                             <svg viewBox="0 0 40 50">
                                 <rect x="5" y="25" width="30" height="20" rx="5" fill="#3498db" />
                                 <circle cx="20" cy="15" r="12" fill="#ffdbac" />
@@ -440,7 +464,6 @@
     const fadeOverlay = document.getElementById("fade-overlay");
     const finalScoreText = document.getElementById("finalScore");
     const highScoreText = document.getElementById("highScore");
-    const startHighScoreText = document.getElementById("startHighScore");
     const controlBar = document.getElementById("controlBar");
     const startBtn = document.getElementById("startBtn");
     const retryBtn = document.getElementById("retryBtn");
@@ -449,6 +472,19 @@
     let audioCtx;
     let animationId; 
     let isTransitioning = false; 
+
+    // QRコード生成
+    function generateQRCode() {
+        const qrContainer = document.getElementById("qrcode");
+        new QRCode(qrContainer, {
+            text: "https://nhideyuki.github.io/001/",
+            width: 120,
+            height: 120,
+            colorDark: "#000000",
+            colorLight: "#ffffff",
+            correctLevel: QRCode.CorrectLevel.H
+        });
+    }
 
     function initAudio() {
         if (!audioCtx) {
@@ -523,12 +559,16 @@
 
     const baseWidth = 400;
     const baseHeight = 500;
+    const baseControlHeight = 160;
+
     const scale = Math.min(window.innerWidth * 0.95 / baseWidth, window.innerHeight * 0.50 / baseHeight);
     canvas.width = baseWidth;
     canvas.height = baseHeight;
     canvas.style.width = (baseWidth * scale) + "px";
     canvas.style.height = (baseHeight * scale) + "px";
+    
     controlBar.style.width = (baseWidth * scale) + "px";
+    controlBar.style.height = (baseControlHeight * scale) + "px";
 
     let score = 0;
     let combo = 0;
@@ -641,17 +681,22 @@
         if (e) { e.preventDefault(); e.stopPropagation(); }
         isTransitioning = true;
         initAudio();
+        
         fadeOverlay.classList.add("active");
         await new Promise(r => setTimeout(r, 450));
+        
         startModal.classList.remove("active");
         gameOverModal.classList.remove("active");
         resetGameState();
-        fadeOverlay.classList.remove("active");
+        
         gameStarted = true;
         gameOver = false;
         setInputInactive();
+        
         if (animationId) cancelAnimationFrame(animationId);
         animationId = requestAnimationFrame(gameLoop);
+        
+        fadeOverlay.classList.remove("active");
         setTimeout(() => { isTransitioning = false; }, 450);
     }
 
@@ -704,8 +749,11 @@
     retryBtn.addEventListener("mouseup", transitionToGame);
     retryBtn.addEventListener("touchend", transitionToGame, {passive: false});
 
-    [controlBar, canvas].forEach(el => {
-        el.addEventListener("touchstart", (e) => { e.preventDefault(); setInputActive(); }, {passive: false});
+    [controlBar].forEach(el => {
+        el.addEventListener("touchstart", (e) => { 
+            e.preventDefault(); 
+            setInputActive(); 
+        }, {passive: false});
         el.addEventListener("mousedown", setInputActive);
     });
 
@@ -896,18 +944,21 @@
         gameOver = true; isTransitioning = true;
         setInputInactive();
         playSound('over');
+        
         fadeOverlay.classList.add("active");
         await new Promise(r => setTimeout(r, 450));
+        
         if (score > sessionHighScore) {
             sessionHighScore = score;
             highScoreText.innerHTML = `${sessionHighScore} <span style="color:#2ecc71;font-size:16px">NEW!</span>`;
         } else {
             highScoreText.innerText = sessionHighScore;
         }
-        startHighScoreText.innerText = sessionHighScore;
         finalScoreText.innerText = score;
+        
         gameOverModal.classList.add("active");
         fadeOverlay.classList.remove("active");
+        
         setTimeout(() => { isTransitioning = false; }, 450);
     }
 
@@ -986,7 +1037,6 @@
                 if (d < minDist) { minDist = d; targetBall = b; }
             });
 
-            // ゲーム内キャラは指定通り拡大白目と広い間隔を維持
             const eyeYPos = hCY - 10; 
             const mouthYPos = hCY + 16; 
             const whiteRadius = 10; 
@@ -1049,12 +1099,13 @@
     }
 
     function gameLoop() {
+        if (gameOver && !isTransitioning) return;
         update(); draw();
-        if (!gameOver || isTransitioning) animationId = requestAnimationFrame(gameLoop);
+        animationId = requestAnimationFrame(gameLoop);
     }
 
     window.onload = () => {
-        startHighScoreText.innerText = sessionHighScore; 
+        generateQRCode(); // QRコードの生成
         draw();
     };
 </script>
