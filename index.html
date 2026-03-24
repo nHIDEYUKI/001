@@ -30,7 +30,6 @@
             touch-action: none;
         }
 
-        /* URL表示用のスタイル */
         .game-url {
             font-size: 22px;
             font-weight: 900;
@@ -41,7 +40,6 @@
             margin-bottom: 5px;
         }
 
-        /* QRコード表示エリアのスタイル */
         #qrcode-container {
             display: flex;
             justify-content: center;
@@ -182,7 +180,9 @@
             opacity: 1;
         }
 
+        /* 修正箇所: box-sizingを追加 */
         .modal-content {
+            box-sizing: border-box; /* paddingとborderをwidthに含める */
             text-align: center;
             padding: 30px 25px;
             background: #111;
@@ -457,6 +457,7 @@
     </div>
 
 <script>
+    // --- (スクリプト部分は変更なしですがQRコード生成を含めて掲載) ---
     const canvas = document.getElementById("gameCanvas");
     const ctx = canvas.getContext("2d");
     const startModal = document.getElementById("startModal");
@@ -473,9 +474,9 @@
     let animationId; 
     let isTransitioning = false; 
 
-    // QRコード生成
     function generateQRCode() {
         const qrContainer = document.getElementById("qrcode");
+        qrContainer.innerHTML = ""; // 重複防止
         new QRCode(qrContainer, {
             text: "https://nhideyuki.github.io/001/",
             width: 120,
@@ -1105,7 +1106,7 @@
     }
 
     window.onload = () => {
-        generateQRCode(); // QRコードの生成
+        generateQRCode();
         draw();
     };
 </script>
