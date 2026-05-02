@@ -59,27 +59,33 @@
             white-space: nowrap;
         }
 
-        #qrcode-container {
+        .qrcode-container {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
             display: flex;
             justify-content: center;
-            margin-top: 15px;
         }
-        #qrcode {
+        .qrcode-target {
             padding: 10px;
             background: white;
             border-radius: 8px;
             box-shadow: 0 0 20px rgba(0,0,0,0.5);
         }
-        #qrcode img {
+        .qrcode-target img {
             image-rendering: pixelated;
         }
 
         #footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            z-index: 200;
             width: 100%;
             padding: 5px 0 10px 0;
             text-align: center;
             background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
-            margin-top: auto;
         }
 
         #game-title {
@@ -125,7 +131,7 @@
         }
 
         #controls {
-            margin-top: 15px;
+            margin-top: 0;
             display: flex;
             justify-content: center;
             width: 100%;
@@ -212,12 +218,14 @@
         .modal-content {
             box-sizing: border-box;
             text-align: center;
-            padding: 30px 25px;
+            padding: 10px 25px;
             background: #111;
             border-radius: 30px;
             border: 3px solid var(--primary);
             width: 90%;
             max-width: 440px;
+            height: 520px;
+            position: relative;
             box-shadow: 0 0 60px rgba(0,0,0,0.8);
             transform: scale(1);
         }
@@ -235,7 +243,7 @@
         }
 
         .tutorial-stage {
-            margin: 15px 0;
+            margin: 5px 0;
             background: rgba(255,255,255,0.03);
             border-radius: 20px;
             padding: 20px 15px;
@@ -352,7 +360,7 @@
         .highscore-row {
             color: var(--primary);
             font-weight: 800;
-            margin-bottom: 20px;
+            margin-bottom: 5px;
             font-size: 26px;
         }
 
@@ -422,15 +430,13 @@
         </div>
 
         <div id="footer">
-            <div class="game-url">nhideyuki.github.io/001/</div>
+            <div class="game-url">nhideyuki.github.io/001</div>
             <h1 id="game-title">HEADING MASTER</h1>
         </div>
 
         <div id="startModal" class="modal active">
             <div class="modal-content">
                 
-                <div class="game-url">nhideyuki.github.io/001/</div>
-                <div class="modal-title">HEADING MASTER</div>
                 <div class="score-row highscore-row">HIGH SCORE: <span id="startHighScore">0</span></div>
                 
                 <div class="tutorial-stage">
@@ -474,25 +480,27 @@
 
                 <button class="action-btn" id="startBtn">
                     <span>START</span>
-                    <div class="space-graphic">SPACE</div>
                 </button>
 
-                <div id="qrcode-container">
-                    <div id="qrcode"></div>
+                <div class="qrcode-container">
+                    <div class="qrcode-target"></div>
                 </div>
             </div>
         </div>
 
         <div id="gameOverModal" class="modal">
             <div class="modal-content">
-                <div class="modal-title">GAME OVER</div>
-                <div class="score-row">SCORE: <span id="finalScore">0</span></div>
                 <div class="score-row highscore-row">HIGH SCORE: <span id="highScore">0</span></div>
+                <div class="modal-title" style="margin-top: 40px;">GAME OVER</div>
+                <div class="score-row" style="font-size: 40px; margin-bottom: 35px;">SCORE: <span id="finalScore">0</span></div>
                 
                 <button class="action-btn" id="retryBtn">
                     <span>RETRY</span>
-                    <div class="space-graphic">SPACE</div>
                 </button>
+
+                <div class="qrcode-container">
+                    <div class="qrcode-target"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -513,7 +521,7 @@
     const STORAGE_KEY = 'heading_master_highscore';
     let sessionHighScore = parseInt(localStorage.getItem(STORAGE_KEY)) || 0; 
 
-    let audioCtx;
+    let audioCtx = new (window.AudioContext || window.webkitAudioContext)();
     let animationId; 
     let isTransitioning = false; 
 
@@ -524,9 +532,6 @@
     canvas.height = baseHeight;
 
     function earlyAudioInit() {
-        if (!audioCtx) {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        }
         if (audioCtx.state === 'suspended') {
             audioCtx.resume();
         }
@@ -562,17 +567,16 @@
 
     function generateQRCode() {
         try {
-            const qrContainer = document.getElementById("qrcode");
-            qrContainer.innerHTML = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAdAQAAAAB+6FqiAAAAnElEQVR4nAGRAG7/AAGTbAACfAUx8ALI66AgAgAloAACAAGAAAI4yEjgAAFVVAAA//W3+AJqGRsAAgJ2H7gADEcrCAQK5bviAIjvIaAAUs7n+AAtZhcAAiLb/ygBIT9DRQGm8Cb0AEn7sWACreDTAAFUMLwYAqv3p+gCAhZOKAB9KscIAUVw2+ABRejf/AIAdAsIBDg7icgAASEQqIIAMXF8q/e+AAAAAElFTkSuQmCC" width="120" height="120" style="display: block;">';
+            const qrContainers = document.querySelectorAll(".qrcode-target");
+            qrContainers.forEach(container => {
+                container.innerHTML = '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAB0AAAAdAQAAAAB+6FqiAAAAnElEQVR4nAGRAG7/AAGTbAACfAUx8ALI66AgAgAloAACAAGAAAI4yEjgAAFVVAAA//W3+AJqGRsAAgJ2H7gADEcrCAQK5bviAIjvIaAAUs7n+AAtZhcAAiLb/ygBIT9DRQGm8Cb0AEn7sWACreDTAAFUMLwYAqv3p+gCAhZOKAB9KscIAUVw2+ABRejf/AIAdAsIBDg7icgAASEQqIIAMXF8q/e+AAAAAElFTkSuQmCC" width="120" height="120" style="display: block;">';
+            });
         } catch (e) {
         }
     }
 
     function initAudio() {
         try {
-            if (!audioCtx) {
-                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            }
             if (audioCtx.state === 'suspended') {
                 audioCtx.resume();
             }
@@ -753,10 +757,7 @@
     async function transitionToGame(e) {
         if (isTransitioning) return;
 
-        if (audioCtx) {
-            await audioCtx.resume();
-        } else {
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') {
             await audioCtx.resume();
         }
 
@@ -770,7 +771,7 @@
         
         isTransitioning = true;
         initAudio();
-        if (audioCtx && audioCtx.state === 'suspended') {
+        if (audioCtx.state === 'suspended') {
             await audioCtx.resume();
         }
         
